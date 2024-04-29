@@ -1,0 +1,112 @@
+// https://www.tradingview.com/script/Iko0E2kL-Nadaraya-Watson-Envelope-LuxAlgo © LuxAlgo (CC BY-NC-SA 4.0)
+
+//@version=5
+indicator(
+  "Nadaraya-Watson Bands",
+  overlay          = true,
+  max_lines_count  = 500,
+  max_labels_count = 500,
+  max_bars_back    = 500)
+
+// Settings
+src  = input.source(close, "Source")
+mult = input.float(3., "Multiplier", minval = 0)
+h    = input.float(8., "Bandwidth", minval = 0)
+
+repaint = input(
+  false,
+  "Repainting Smoothing",
+  tooltip = "Repainting is an effect where the indicators historical output is subject to change over time. Disabling repainting will cause the indicator to output the endpoints of the calculations")
+
+// Style
+upColor   = input.color(color.teal, "Colors", inline = "inline1", group = "Style")
+downColor = input.color(color.red, "", inline = "inline1", group = "Style")
+
+// Gaussian window
+gauss(x, h) => math.exp(-(math.pow(x, 2) / (h * h * 2)))
+
+// Append lines
+n = bar_index
+
+var ln = array.new_line(0)
+
+if barstate.isfirst and repaint
+    for i = 0 to 499
+        array.push(ln, line.new(na, na, na, na))
+
+// End point method
+var coefs = array.new_float(0)
+var den   = 0.
+
+if barstate.isfirst and not repaint
+    for i = 0 to 499
+        w = gauss(i, h)
+        coefs.push(w)
+    den := coefs.sum()
+
+out = 0.
+if not repaint
+    for i = 0 to 499
+        out += src[i] * coefs.get(i)
+out /= den
+mae = ta.sma(math.abs(src - out), 499) * mult
+
+upper = out + mae
+lower = out - mae
+
+// Compute and display NWE
+float y2 = na
+float y1 = na
+
+nwe = array.new<float>(0)
+if barstate.islast and repaint
+    sae = 0.
+    // Compute and set NWE point
+    for i = 0 to math.min(499, n - 1)
+        sum = 0.
+        sumw = 0.
+        // Compute weighted mean
+        for j = 0 to math.min(499, n - 1)
+            w = gauss(i - j, h)
+            sum += src[j] * w
+            sumw += w
+        y2 := sum / sumw
+        sae += math.abs(src[i] - y2)
+        nwe.push(y2)
+
+    sae := sae / math.min(499, n - 1) * mult
+    for i = 0 to math.min(499, n - 1)
+        if i % 2 != 0
+            line.new(n-i + 1, y1 + sae, n - i, nwe.get(i) + sae, color = upColor)
+            line.new(n-i + 1, y1 - sae, n - i, nwe.get(i) - sae, color = downColor)
+        if src[i] > nwe.get(i) + sae and src[i+1] < nwe.get(i) + sae
+            label.new(n-i, src[i], "▼", color = color(na), style = label.style_label_down, textcolor = downColor, textalign = text.align_center)
+        if src[i] < nwe.get(i) - sae and src[i+1] > nwe.get(i) - sae
+            label.new(n-i, src[i], "▲", color = color(na), style = label.style_label_up, textcolor = upColor, textalign = text.align_center)
+        y1 := nwe.get(i)
+
+// Plot
+plot(repaint ? na : out + mae, "Upper", upColor)
+plot(repaint ? na : out - mae, "Lower", downColor)
+
+// Crossing Arrows
+plotshape(
+  ta.crossunder(close, out - mae) ? low : na,
+  "Crossunder",
+  shape.labelup,
+  location.absolute,
+  color(na),
+  0 ,
+  text = "▲",
+  textcolor = upColor,
+  size = size.tiny)
+plotshape(
+  ta.crossover(close, out + mae) ? high : na,
+  "Crossover",
+  shape.labeldown,
+  location.absolute,
+  color(na),
+  0 ,
+  text = "▼",
+  textcolor = downColor,
+  size = size.tiny)

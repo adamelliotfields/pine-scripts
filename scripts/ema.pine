@@ -1,0 +1,58 @@
+//@version=5
+indicator(
+  "Exponential Moving Average",
+  "EMA",
+  overlay        = true,
+  timeframe      = "",
+  timeframe_gaps = true)
+
+src    = input.source(close, "Source")
+len    = input.int(8, "Length", minval = 1)
+offset = input.int(
+  0,
+  "Offset",
+  minval  = -500,
+  maxval  = 500,
+  display = display.data_window)
+
+out = ta.ema(src, len)
+plot(out, "EMA", color = color.blue, offset = offset)
+
+ma(source, length, type) =>
+    switch type
+        "SMA"  => ta.sma(source, length)
+        "EMA"  => ta.ema(source, length)
+        "RMA"  => ta.rma(source, length)
+        "WMA"  => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+enableSmoothing = input.bool(
+  false,
+  "Enable",
+  group   = "Smoothing",
+  display = display.data_window)
+
+typeMA = input.string(
+  "SMA",
+  "Method",
+  options = ["SMA", "EMA", "RMA", "WMA", "VWMA"],
+  group   = "Smoothing",
+  display = display.data_window)
+
+smoothingLength = input.int(
+  5,
+  "Length",
+  minval  = 1,
+  maxval  = 100,
+  group   = "Smoothing",
+  display = display.data_window)
+
+// can't call `plot()` in an `if` block
+smoothingLine = enableSmoothing ? ma(out, smoothingLength, typeMA) : na
+displayLine   = enableSmoothing ? display.all : display.none
+plot(
+  smoothingLine,
+  "Smoothing Line",
+  color   = #f37f20,
+  offset  = offset,
+  display = displayLine)

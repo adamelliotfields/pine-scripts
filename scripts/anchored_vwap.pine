@@ -1,0 +1,19 @@
+//@version=5
+indicator(title = "Anchored VWAP", shorttitle = "AVWAP", overlay = true)
+
+int lineWidth   = input.int(2, "Width")
+color lineColor = input.color(#673ab7, "Color")
+float source    = input.source(hlc3, "Source")
+int start       = input.time(0, "Start", confirm = true)
+
+bool anchor = start <= time
+
+getAVWAP() =>
+    // to initialize with `na` you must use a type
+    float priceVol = na
+    float totalVol = na
+    priceVol := anchor and not anchor[1] ? (source * volume) : priceVol[1] + (source * volume)
+    totalVol := anchor and not anchor[1] ? volume : (totalVol[1] + volume)
+    priceVol / totalVol
+
+plot(getAVWAP(), "AVWAP", lineColor, lineWidth)
