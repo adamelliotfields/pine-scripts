@@ -1,147 +1,67 @@
+//@version=6
+
 // https://www.tradingview.com/script/ZMdZlGaJ-Volume-Speed-By-MUQWISHI © MUQWISHI (MPL 2.0)
+indicator("Volume Meter", overlay=true)
 
-//@version=5
-indicator("Volume Meter", "Meter", overlay = true)
+const int TABLE_WIDTH = 50
+const int NUM_SECONDS = 62 // 2 second buffer to avoid out-of-bounds error
+const int SPACE = 1 // set to 0 to remove space between cells
 
-// Table Settings
-var G1 = "Widget Settings"
+tablePosition = input.string(
+  "bottom_center",
+  title="Location | Size",
+  inline="inline1",
+  options=["top_right", "middle_right", "bottom_right", "top_center", "middle_center", "bottom_center", "top_left", "middle_left", "bottom_left"])
 
-// Location 
-tablePos = input.string("Bottom Center", "Location | Size",
-  ["Top Right" , "Middle Right", "Bottom Right" ,
-   "Top Center", "Middle Center", "Bottom Center",
-   "Top Left", "Middle Left", "Bottom Left" ],
-  inline = "0", group = G1, display = display.none)
+textSize = input.string(
+  "tiny",
+  title="",
+  inline="inline1",
+  options=["auto", "huge", "large", "normal", "small", "tiny"])
 
-// Size
-tableSiz = input.string("Small", "",
-  ["Auto", "Huge", "Large", "Normal", "Small", "Tiny"],
-  inline = "0", group = G1, display = display.none)
+// Table colors
+tableBgColor = input.color(#000000, title="Background | Text Color    ", inline="inline2")
+tableTextColor = input.color(#ffffff, "", inline="inline2")
 
-tableWidth = 50
+// Cell colors
+upColor = input.color(#0c5a99, title="Up | Down Color  ", inline="inline3")
+downColor = input.color(#e65100, title="", inline="inline3")
 
-// Cell Colors
-upXCC = input.color(#0c5a99, "Up | Down Color  ", group = G1, inline = "1")
-dnXCC = input.color(#E65100, "", group = G1, inline = "1")
-clrMd = input.string("Gradient", "", ["Solid", "Gradient"], group = G1, inline = "1", display = display.none)
 
-// Table Colors
-tBgCol = input.color(#000000, "Background | Text Color    ", group = G1, inline = "2", display = display.none)
-tTxCol = input.color(#ffffff, "", group = G1, inline = "2", display = display.none)
+// Format volume
+formatVolume(x) =>
+    x > 999999 ? str.tostring(x, format.volume) : str.tostring(x)
 
-// Cell Space
-space = 1 // set to 0 to remove space between cells
 
-// History Length (number of bars)
-// TODO: rename and document what the extra 2 are for
-nRow = 62 // 60 bars + 2
+// Apply gradient color
+colorGradient(col, z) =>
+    R = color.r(col), G = color.g(col), B = color.b(col)
 
-// Get Number of Strings Function
-strVol (x) => str.tostring(x, format.volume)
-strTik (x) => str.tostring(x, format.mintick)
-
-// Declare Matrix
-var mtx = matrix.new<float>(0, 5, na) // Lower Timeframe
-
-// Import Data
-[cls, tim, vol, sBr] = request.security_lower_tf(syminfo.tickerid, "1S",
-  [close, time, volume, session.isfirstbar ? 1 : 0], true)
-
-var chg = 0
-if cls.size() > 0 and cls.size() == tim.size() and cls.size() == vol.size()
-    sIdx = cls.size() - nRow < 0 ? 0 : cls.size() - nRow
-    eIdx = cls.size()
-
-    tim0 = tim.slice(sIdx, eIdx)
-    vol0 = vol.slice(sIdx, eIdx)
-    cls0 = cls.slice(sIdx, eIdx)
-    sBr0 = sBr.slice(sIdx, eIdx)
-
-    for i = 0 to cls0.size() - 1
-        cTim = tim0.get(i)
-        cVol = vol0.get(i)
-        cCls = cls0.get(i)
-        csBr = sBr0.get(i)
-
-        if mtx.rows() > 0
-            // Price Change
-            pCls = mtx.get(0, 2)
-            if pCls != cCls
-                chg := (cCls - pCls) / pCls > 0 ? 1 : -1
-
-        // Add new rows with values to Matrix
-        mtx.add_row(0, array.from(cTim, chg, cCls, cVol, csBr))
-
-        // Remove over rows from a Matrix
-        while mtx.rows() > nRow
-            mtx.remove_row(mtx.rows()-1)
-
-// Get Table Location & Size
-locNsze(x) => 
-    y   = str.split(str.lower(x), " ")
-    out = ""
-    for i = 0 to y.size() - 1
-        out := out + y.get(i)
-        if i != y.size() - 1
-            out := out + "_"
-    out
-
-// Get Volume Format
-volForm(x) => x > 999999 ? strVol(x) : str.tostring(x)
-
-// Get Speed Info
-speed(x1, x2) =>
-    var unit = switch syminfo.type
-        "stock"  => " Shares/"
-        "dr"     => " Shares/"
-        "fund"   => " Shares/"
-        "crypto" => " Coins/"
-        => " Units/"
-
-    varip spMin = 0.0
-    varip spMax = 0.0
-    varip spTim = timenow
-
-    speed = barstate.isrealtime ? x1 / x2 : 0
-
-    spMin := spMin == 0 ? speed : math.min(speed, spMin)
-    spMax := spMax == 0 ? speed : math.max(speed, spMax)
-
-    [volForm(math.round(speed, 6)) + unit + "s",
-     volForm(math.round(spMin, 6)) + unit + "s",
-     volForm(math.round(spMax, 6)) + unit + "s",
-     str.format_time(spTim, "HH:mm:ss yyyy-MM-dd", "GMT-5")]
-
-// Get Dynamic Scale Bar Color
-colorLab(col, z) =>
-    R = color.r(col), G = color.g(col),  B = color.b(col)
-
-    // RGB To HSL
+    // RGB to HSL
     r1 = R / 255, g1 = G / 255, b1 = B / 255
 
     cMax = math.max(r1, g1, b1)
     cMin = math.min(r1, g1, b1)
-    dlta = cMax - cMin
+    delta = cMax - cMin
 
     h = 0.0
-    if dlta != 0
+    if delta != 0
         if cMax == r1
-            h := ((g1 - b1) / dlta) % 6
+            h := ((g1 - b1) / delta) % 6
         else if cMax == g1
-            h := (b1 - r1) / dlta + 2
+            h := (b1 - r1) / delta + 2
         else if cMax == b1
-            h := (r1 - g1) / dlta + 4
-
+            h := (r1 - g1) / delta + 4
         h := h < 0 ? (h * 60) + 360 : h * 60
 
     l = (cMax + cMin) / 2
-    s = dlta != 0 ? dlta / (1 - math.abs(2 * l - 1)) : 0.0
+    s = delta != 0 ? delta / (1 - math.abs(2 * l - 1)) : 0.0
 
-    // Update Lightness
-    l := (85 - 60.0 / 100.0 * z) / 100
-    l := l > 1 ? 1 : l < -1 ? -1 : l
+    // Update lightness
+    l := (80 - z) / 100
+    l := l > 1 ? 1 : l < -1 ? -1 : l // clamp
 
-    // HSL To RGB
+    // HSL to RGB
     c = (1 - math.abs(2 * l - 1)) * s
     x = c * (1 - math.abs((h / 60) % 2 - 1))
     m = l - c / 2
@@ -162,68 +82,108 @@ colorLab(col, z) =>
 
     color.rgb((r2 + m) * 255, (g2 + m) * 255, (b2 + m) * 255)
 
-sColor(col)=>
-    var out = array.new<color>(tableWidth, col)
-    if clrMd == "Gradient"
-        for i = 0 to out.size() - 1
-            array.set(out, i, colorLab(col, i))
-    out
 
-// Create Table
+// Initialize matrix
+var lowerTimeframe = matrix.new<float>(0, 5, na)
+
+// Fetch lower timeframe data
+[lowerClose, lowerTime, lowerVolume, lowerStart] = request.security_lower_tf(
+  syminfo.tickerid,
+  "1S",
+  [close, time, volume, session.isfirstbar ? 1 : 0],
+  true)
+
+var change = 0
+if lowerClose.size() > 0 and lowerClose.size() == lowerTime.size() and lowerTime.size() == lowerVolume.size()
+    start = lowerClose.size() - NUM_SECONDS < 0 ? 0 : lowerClose.size() - NUM_SECONDS
+    end = lowerClose.size()
+    lowerTime := lowerTime.slice(start, end)
+    lowerVolume := lowerVolume.slice(start, end)
+    lowerClose := lowerClose.slice(start, end)
+    lowerStart := lowerStart.slice(start, end)
+
+    for i = 0 to lowerClose.size() - 1
+        closeTime = lowerTime.get(i)
+        closeVolume = lowerVolume.get(i)
+        closeClose = lowerClose.get(i)
+        closeStart = lowerStart.get(i)
+
+        if lowerTimeframe.rows() > 0
+            priceClose = lowerTimeframe.get(0, 2)
+            if priceClose != closeClose
+                change := (closeClose - priceClose) / priceClose > 0 ? 1 : -1
+
+        lowerTimeframe.add_row(0, array.from(closeTime, change, closeClose, closeVolume, closeStart))
+
+        while lowerTimeframe.rows() > NUM_SECONDS
+            lowerTimeframe.remove_row(lowerTimeframe.rows()-1)
+
+// Create table
 var table tbl = na
-if mtx.rows() > 2
-    tbl := table.new(locNsze(tablePos), tableWidth + 2, 4, tBgCol,
-      tTxCol, 1, color.new(tBgCol, tableWidth), space)
+if lowerTimeframe.rows() > 2
+    tbl := table.new(
+      tablePosition,
+      TABLE_WIDTH + 2,
+      4,
+      tableBgColor,
+      tableTextColor,
+      1,
+      color.new(tableBgColor, TABLE_WIDTH),
+      SPACE)
 
-// Get Cell Function
-cell(col, row, txt, w, h, color, txtCol, tip) =>
-    tbl.cell(col, row, txt, w, h, txtCol, bgcolor = color, text_size = locNsze(tableSiz))
-    if tip != ""
-        tbl.cell_set_tooltip(col, row, tip)
 
-// Draw Table
+// Table cell helper
+cell(col, row, txt, width, height, textColor, bgColor, tooltip) =>
+    tbl.cell(col, row, txt, width, height, textColor, bgcolor=bgColor, text_size=textSize)
+    if tooltip != ""
+        tbl.cell_set_tooltip(col, row, tooltip)
+
+
+// Draw table
 if barstate.islast and not na(tbl)
-    table.clear(tbl, 0, 0, tableWidth + 1, 3)
+    table.clear(tbl, 0, 0, TABLE_WIDTH + 1, 3)
 
-    upVol = .0
-    dnVol = .0
-    for i = 0 to mtx.rows() - 3
-        if mtx.get(i, 1) > 0
-            upVol += mtx.get(i, 3)
+    upVolume = 0.0
+    downVolume = 0.0
+    for i = 0 to lowerTimeframe.rows() - 3
+        if lowerTimeframe.get(i, 1) > 0
+            upVolume += lowerTimeframe.get(i, 3)
         else
-            dnVol += mtx.get(i, 3)
+            downVolume += lowerTimeframe.get(i, 3)
 
-    span  = (timenow - mtx.get(mtx.rows() -3, 0)) / 1000
-    smVol = upVol + dnVol
-    avVol = smVol/(mtx.rows() - 2)
+    sumVolume = upVolume + downVolume
+    averageVolume = sumVolume / (lowerTimeframe.rows() - 2)
 
-    // Up & Down Volumes Columns
     cell(0, 3, "00000.000000", 0, 0.0001, color(na), color(na), "Total Up Volume")
-    cell(tableWidth + 1, 3, "00000.000000", 0, 0.0001, color(na), color(na), "Total Down Volume")
+    cell(TABLE_WIDTH + 1, 3, "00000.000000", 0, 0.0001, color(na), color(na), "Total Down Volume")
 
-    cell(0, 1, volForm(upVol), 0, 0, upXCC, tTxCol, "Total Up Volume")
-    cell(tableWidth + 1, 1, volForm(dnVol), 0, 0, dnXCC, tTxCol, "Total Down Volume")
+    cell(0, 1, formatVolume(upVolume), 0, 0, tableTextColor, upColor, "Total Up Volume")
+    cell(TABLE_WIDTH + 1, 1, formatVolume(downVolume), 0, 0, tableTextColor, downColor, "Total Down Volume")
 
-    cell(0, 0, "UP", 0, 0, color(na), tTxCol, "Total Up Volume")
-    cell(tableWidth + 1, 0, "DOWN", 0, 0, color(na), tTxCol, "Total Down Volume")
+    cell(0, 0, "UP", 0, 0, tableTextColor, color(na), "Total Up Volume")
+    cell(TABLE_WIDTH + 1, 0, "DOWN", 0, 0, tableTextColor, color(na), "Total Down Volume")
 
-    // Volume Dynamic Scale Bar
-    upStng = math.round(upVol/smVol * tableWidth)
-    dnStng = tableWidth - upStng
+    upStrength = math.round(upVolume / sumVolume * TABLE_WIDTH)
+    downStrength = TABLE_WIDTH - upStrength
 
-    var upCol = sColor(upXCC)
-    var dnCol = sColor(dnXCC)
-    for i = 0 to tableWidth - 1
+    var upColorArray = array.new<color>(TABLE_WIDTH, upColor)
+    var downColorArray = array.new<color>(TABLE_WIDTH, downColor)
+
+    for i = 0 to TABLE_WIDTH - 1
         cell(1 + i, 0, "", 0.3, 0, color(na), color(na), "")
         cell(1 + i, 2, "", 0.3, 0, color(na), color(na), "")
         cell(1 + i, 3, "", 0.3, 0.0001, color(na), color(na), "")
 
-        if i < upStng
-            cell(1 + i, 1, "", 0.3, 0, upCol.get(i), tTxCol, "")
+        array.set(upColorArray, i, colorGradient(upColor, i))
+        array.set(downColorArray, i, colorGradient(downColor, i))
 
-        if i < dnStng
-            cell(tableWidth - i, 1, "", 0.3, 0, dnCol.get(i), tTxCol, "")
+        if i < upStrength
+            cell(1 + i, 1, "", 0.3, 0, tableTextColor, upColorArray.get(i), "")
 
-    table.merge_cells(tbl, 1, 0, tableWidth, 0)
+        if i < downStrength
+            cell(TABLE_WIDTH - i, 1, "", 0.3, 0, tableTextColor, downColorArray.get(i), "")
+
+    // Merge cells to display warning if not live data
     if not barstate.isrealtime
-        cell(1, 0, "⚠ This Tool Performs During Live Market", 0, 0, color(na), color.red, "")
+        table.merge_cells(tbl, 1, 0, TABLE_WIDTH, 0)
+        cell(1, 0, "⚠ Live Data Required", 0, 0, color.red, color(na), "")

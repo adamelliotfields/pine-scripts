@@ -1,19 +1,25 @@
-//@version=5
-indicator(title = "Anchored VWAP", shorttitle = "AVWAP", overlay = true)
+//@version=6
+indicator(title="Anchored VWAP", shorttitle="AVWAP", overlay=true)
 
-int lineWidth   = input.int(2, "Width")
-color lineColor = input.color(#673ab7, "Color")
-float source    = input.source(hlc3, "Source")
-int start       = input.time(0, "Start", confirm = true)
+price = input.source(hlc3, title="Source")
+start = input.time(0, title="Start", confirm=true) // confirm enables interactive mode
 
-bool anchor = start <= time
+var g1 = "Style"
+lineWidth = input.int(2, title="Width", minval=1, maxval=5, step=1, group=g1)
+lineColor = input.color(color.purple, title="Color", group=g1)
 
-getAVWAP() =>
-    // to initialize with `na` you must use a type
-    float priceVol = na
-    float totalVol = na
-    priceVol := anchor and not anchor[1] ? (source * volume) : priceVol[1] + (source * volume)
-    totalVol := anchor and not anchor[1] ? volume : (totalVol[1] + volume)
-    priceVol / totalVol
 
-plot(getAVWAP(), "AVWAP", lineColor, lineWidth)
+calculateVWAP(anchor) =>
+    // Initialize to na because of recursive reference
+    float priceVolume = na
+    float totalVolume = na
+
+    // Start if not already an anchor otherwise accumulate
+    priceVolume := anchor and not anchor[1] ? (price * volume) : priceVolume[1] + (price * volume)
+    totalVolume := anchor and not anchor[1] ? volume : (totalVolume[1] + volume)
+
+    // VWAP is Σ(P * V) / Σ(V)
+    priceVolume / totalVolume
+
+
+plot(calculateVWAP(start <= time), "AVWAP", lineColor, lineWidth)

@@ -1,109 +1,107 @@
+//@version=6
+
 // https://www.tradingview.com/script/2HmHKuo1-Fibonacci-Toolkit-LuxAlgo © LuxAlgo (CC BY-NC-SA 4.0)
+indicator("Fibonacci", overlay=true)
 
-//@version=5
-indicator(
-  "Fibonacci",
-  overlay = true,
-  max_lines_count = 500)
+extendRetracements = input.bool(true, "Extend Retracements")
+start = input.time(0, "Start", confirm=true)
+end = input.time(0, "End", confirm=true)
+price = input.source(hlc3, "Source")
 
-ext    = input.bool(true, "Extend Retracements")
-start  = input.time(0, "Start", confirm=true)
-end    = input.time(0, "End", confirm=true)
-src    = input.source(close, "Source")
+var g1 = "Fibonacci"
+fibA = input.bool(true, "Fib A", inline="inline1", group=g1)
+fibALvl = input.float(0.236, "", inline="inline1", group=g1)
+fibAColor = input.color(#2157f3, "", inline="inline1", group=g1) // blue
 
-fib_a     = input.bool(true, "Fib A", inline = "inline1", group = "Fibonacci")
-fib_a_lvl = input.float(0.236, "", inline = "inline1", group = "Fibonacci")
-fib_a_col = input.color(#2157f3, "", inline = "inline1", group = "Fibonacci")
+fibB = input(true, "Fib B", inline="inline2", group=g1)
+fibBLvl = input(0.382, "", inline="inline2", group=g1)
+fibBColor = input(#0cb51a, "", inline="inline2", group=g1) // green
 
-fib_b     = input(true, "Fib B", inline = "inline2", group = "Fibonacci")
-fib_b_lvl = input(0.382, "", inline = "inline2", group = "Fibonacci")
-fib_b_col = input(#0cb51a, "", inline = "inline2", group = "Fibonacci")
+fibC = input(true, "Fib C", inline="inline3", group=g1)
+fibCLvl = input(0.5, "", inline="inline3", group=g1)
+fibCColor = input(#ff5d00, "", inline="inline3", group=g1) // red
 
-fib_c     = input(true, "Fib C", inline = "inline3", group = "Fibonacci")
-fib_c_lvl = input(0.5, "", inline = "inline3", group = "Fibonacci")
-fib_c_col = input(#ff5d00, "", inline = "inline3", group = "Fibonacci")
+fibD = input(true, "Fib D", inline="inline4", group=g1)
+fibDLvl = input(0.618, "", inline="inline4", group=g1)
+fibDColor = input(#64b5f6, "", inline="inline4", group=g1) // light blue
 
-fib_d     = input(true, "Fib D", inline = "inline4", group = "Fibonacci")
-fib_d_lvl = input(0.618, "", inline = "inline4", group = "Fibonacci")
-fib_d_col = input(#64b5f6, "", inline = "inline4", group = "Fibonacci")
+fibE = input(true, "Fib E", inline="inline5", group=g1)
+fibELvl = input(0.786, "", inline="inline5", group=g1)
+fibEColor = input(#673ab7, "", inline="inline5", group=g1) // purple
 
-fib_e     = input(true, "Fib E", inline = "inline5", group = "Fibonacci")
-fib_e_lvl = input(0.786, "", inline = "inline5", group = "Fibonacci")
-fib_e_col = input(#673ab7, "", inline = "inline5", group = "Fibonacci")
+fibF = input(true, "Fib F", inline="inline6", group=g1)
+fibFLvl = input(1.0, "", inline="inline6", group=g1)
+fibFColor = input(#e91e63, "", inline="inline6", group=g1) // dark red
 
-fib_f     = input(true, "Fib F", inline = "inline6", group = "Fibonacci")
-fib_f_lvl = input(1., "", inline = "inline6", group = "Fibonacci")
-fib_f_col = input(#e91e63, "", inline = "inline6", group = "Fibonacci")
+connectingLine = input(true, "Line", inline="inline7", group=g1)
+lineColor = input(color.gray, "", inline="inline7", group=g1)
 
-connecting_line = input(true, "Line", inline = "inline7", group = "Fibonacci")
-line_col        = input(color.gray, "", inline = "inline7", group = "Fibonacci")
-
-var fib     = array.new_float(0)
-var fib_col = array.new_color(0)
+var fib = array.new_float(0)
+var fibColor = array.new_color(0)
 
 if barstate.isfirst
-    if fib_a
-        array.push(fib, fib_a_lvl)
-        array.push(fib_col, fib_a_col)
-    if fib_b
-        array.push(fib, fib_b_lvl)
-        array.push(fib_col, fib_b_col)
-    if fib_c
-        array.push(fib, fib_c_lvl)
-        array.push(fib_col, fib_c_col)
-    if fib_d
-        array.push(fib, fib_d_lvl)
-        array.push(fib_col, fib_d_col)
-    if fib_e
-        array.push(fib, fib_e_lvl)
-        array.push(fib_col, fib_e_col)
-    if fib_f
-        array.push(fib, fib_f_lvl)
-        array.push(fib_col, fib_f_col)
+    if fibA
+        array.push(fib, fibALvl)
+        array.push(fibColor, fibAColor)
+    if fibB
+        array.push(fib, fibBLvl)
+        array.push(fibColor, fibBColor)
+    if fibC
+        array.push(fib, fibCLvl)
+        array.push(fibColor, fibCColor)
+    if fibD
+        array.push(fib, fibDLvl)
+        array.push(fibColor, fibDColor)
+    if fibE
+        array.push(fib, fibELvl)
+        array.push(fibColor, fibEColor)
+    if fibF
+        array.push(fib, fibFLvl)
+        array.push(fibColor, fibFColor)
 
 n = bar_index
-dt = time-time[1]
+dt = time - time[1]
 
-start_n = ta.valuewhen(time == start, n, 0)
-end_n = ta.valuewhen(time == end, n, 0)
+startN = ta.valuewhen(time == start, n, 0)
+endN = ta.valuewhen(time == end, n, 0)
 
-start_y = ta.valuewhen(time == start, src, 0)
-end_y = ta.valuewhen(time == end, src, 0)
+startY = ta.valuewhen(time == start, price, 0)
+endY = ta.valuewhen(time == end, price, 0)
 
-diff_n = end_n - start_n
-diff_y = start_y - end_y
+diffN = endN - startN
+diffY = startY - endY
 
-if n == math.max(start_n, end_n)
+if n == math.max(startN, endN)
     a = 0
     b = 1
     sum = 0
     s2 = math.sqrt(2)
 
-    if connecting_line
-        line.new(start_n, start_y, end_n, end_y, color = line_col)
+    if connectingLine
+        line.new(startN, startY, endN, endY, color=lineColor)
 
     for i = 0 to array.size(fib) - 1
-        lvl = end_y + array.get(fib, i) * diff_y
-        line.new(start_n, lvl, end_n, lvl, color = array.get(fib_col, i))
+        lvl = endY + array.get(fib, i) * diffY
+        line.new(startN, lvl, endN, lvl, color=array.get(fibColor, i))
 
-        if ext
-            start_ext = math.max(start_n, end_n)
+        if extendRetracements
+            startExt = math.max(startN, endN)
             line.new(
-              start_ext,
+              startExt,
               lvl,
-              start_ext + 1,
+              startExt + 1,
               lvl,
-              color=array.get(fib_col, i),
-              extend = extend.right,
+              color=array.get(fibColor, i),
+              extend=extend.right,
               style=line.style_dashed)
 
-        sty = label.style_label_right
+        style = label.style_label_right
         label.new(
-          math.min(start_n, end_n),
+          math.min(startN, endN),
           lvl,
           str.tostring(array.get(fib, i)),
-          color=#00000000,
-          style=sty,
-          textcolor=array.get(fib_col, i),
+          color=color(na), // transparent
+          style=style,
+          textcolor=array.get(fibColor, i),
           textalign=text.align_center,
           size=size.small)
