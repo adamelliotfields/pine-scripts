@@ -1,0 +1,75 @@
+//@version=6
+indicator("Moving Average", "MA", overlay=true, timeframe="", timeframe_gaps=true) // enable multi-timeframe
+
+// Tooltips
+var smaTooltip = "SMA:  The sum of last y values of x, divided by y."
+var emaTooltip = "EMA:  Exponentially weighted moving average."
+var rmaTooltip = "RMA:  Relative moving average."
+var hmaTooltip = "HMA:  Hull Moving Average."
+var wmaTooltip = "WMA:  Weighted moving average."
+var vwmaTooltip = "VWMA: Volume weighted moving average."
+var kindTooltip = smaTooltip + "\n" + emaTooltip + "\n" + rmaTooltip + "\n" + hmaTooltip + "\n" + wmaTooltip + "\n" + vwmaTooltip
+
+kind = input.string(
+  "SMA",
+  title="Kind",
+  tooltip=kindTooltip,
+  options=["SMA", "EMA", "RMA", "HMA", "WMA", "VWMA"])
+
+price = input(
+  hlc3,
+  title="Source")
+
+length = input.int(
+  20,
+  title="Length",
+  minval=1)
+
+offset = input.int(
+  0,
+  title="Offset",
+  minval=-500,
+  maxval=500,
+  display=display.data_window)
+
+enableSmoothing = input.bool(
+  false,
+  "Enable Smoothing",
+  group="Smoothing",
+  display=display.data_window)
+
+smoothingKind = input.string(
+  "SMA",
+  "Kind",
+  group="Smoothing",
+  display=display.data_window,
+  options=["SMA", "EMA", "RMA", "HMA", "WMA", "VWMA"])
+
+smoothingLength = input.int(
+  5,
+  "Length",
+  minval=1,
+  maxval=100,
+  group="Smoothing",
+  display=display.data_window)
+
+
+// Calculate moving average by kind
+maByKind(src, len, k) =>
+    switch k
+        "SMA"  => ta.sma(src, len)
+        "EMA"  => ta.ema(src, len)
+        "RMA"  => ta.rma(src, len)
+        "HMA"  => ta.hma(src, len)
+        "WMA"  => ta.wma(src, len)
+        "VWMA" => ta.vwma(src, len)
+
+
+// Plot moving average
+ma = maByKind(price, length, kind)
+plot(ma, "MA", color=color.blue, offset=offset)
+
+// Plot smoothing line
+displayLine = enableSmoothing ? display.all : display.none
+smoothingLine = enableSmoothing ? maByKind(ma, smoothingLength, smoothingKind) : na
+plot(smoothingLine, "MA Smooth", color=#f37f20, offset=offset, display=displayLine)
