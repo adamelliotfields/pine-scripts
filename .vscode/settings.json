@@ -1,0 +1,6 @@
+{
+  "editor.colorDecorators": false,
+  "files.associations": {
+    "*.pine": "dart"
+  }
+}
