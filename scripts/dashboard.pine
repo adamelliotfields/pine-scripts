@@ -1,0 +1,83 @@
+//@version=6
+indicator("Dashboard", overlay=true)
+
+const color BG_COLOR = color.new(#000000, 20)
+const color TEXT_COLOR = color.new(#ffffff, 0)
+const color BORDER_COLOR = color.new(#ffffff, 50)
+const color BULLISH_COLOR = color.new(color.lime, 0)
+const color BEARISH_COLOR = color.new(color.red, 0)
+
+tableSource = input.source(hlc3, "Source")
+
+tablePosition = input.string(
+  "bottom_right",
+  title="Location",
+  options=["top_right", "middle_right", "bottom_right", "top_center", "middle_center", "bottom_center", "top_left", "middle_left", "bottom_left"])
+
+tableTextSize = input.string(
+  "normal",
+  title="Size",
+  options=["auto", "huge", "large", "normal", "small", "tiny"])
+
+// Custom settings group
+var g1 = "Custom Indicator"
+showCustom = input.bool(false, "Enable custom indicator", group=g1)
+customSource = input.source(close, "Custom Source", group=g1, display=display.none)
+customName = input.string("Close", "Custom Name", group=g1, display=display.none)
+
+// Calculate number of rows based on settings
+var numRows = showCustom ? 6 : 5
+
+// Create table
+var tbl = table.new(
+  tablePosition,
+  columns=2,
+  rows=numRows,
+  bgcolor=BG_COLOR,
+  frame_width=1,
+  frame_color=BORDER_COLOR,
+  border_width=1,
+  border_color=BORDER_COLOR)
+
+
+// Function to add a row to the table
+tableRow(int row, string label, string value, color value_color) =>
+    table.cell(tbl, 0, row, label, text_color=TEXT_COLOR, text_size=tableTextSize, text_halign=text.align_left, text_formatting=text.format_bold)
+    table.cell(tbl, 1, row, value, text_color=value_color, text_size=tableTextSize)
+
+
+// Calculate indicators
+atr = ta.atr(14)
+rsi = ta.rsi(tableSource, 14)
+sma50 = ta.sma(tableSource, 50)
+sma200 = ta.sma(tableSource, 200)
+
+// Calculate percentage change
+percentChange = ((close - close[1]) / close[1]) * 100
+
+// Only update when the bar closes
+if barstate.isconfirmed
+    // Percentage change with arrow
+    changeSymbol = percentChange >= 0 ? "△" : "▽"
+    changeColor = percentChange >= 0 ? BULLISH_COLOR : BEARISH_COLOR
+    changeText = changeSymbol + " " + str.tostring(math.abs(percentChange), "#.##") + "%"
+    tableRow(0, "Change", changeText, changeColor)
+
+    // 50 SMA with color formatting
+    sma50Color = close > sma50 ? BULLISH_COLOR : BEARISH_COLOR
+    tableRow(1, "SMA50", str.tostring(sma50, "#.##"), sma50Color)
+
+    // 200 SMA with color formatting
+    sma200Color = close > sma200 ? BULLISH_COLOR : BEARISH_COLOR
+    tableRow(2, "SMA200", str.tostring(sma200, "#.##"), sma200Color)
+
+    // RSI with color formatting
+    rsiColor = rsi >= 70 ? BEARISH_COLOR : rsi <= 30 ? BULLISH_COLOR : TEXT_COLOR
+    tableRow(3, "RSI", str.tostring(rsi, "#.##"), rsiColor)
+     
+    // ATR
+    tableRow(4, "ATR", str.tostring(atr, "#.##"), TEXT_COLOR)
+
+    // Custom indicator if enabled
+    if showCustom
+        tableRow(5, customName, str.tostring(customSource, "#.##"), TEXT_COLOR)
