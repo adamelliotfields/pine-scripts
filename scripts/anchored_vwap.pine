@@ -1,25 +1,21 @@
 //@version=6
 indicator(title="Anchored VWAP", shorttitle="AVWAP", overlay=true)
 
-price = input.source(hlc3, title="Source")
+source = input.source(hlc3, title="Source")
 start = input.time(0, title="Start", confirm=true) // confirm enables interactive mode
-
-var g1 = "Style"
-lineWidth = input.int(2, title="Width", minval=1, maxval=5, step=1, group=g1)
-lineColor = input.color(color.purple, title="Color", group=g1)
 
 
 calculateVWAP(anchor) =>
     // Initialize to na because of recursive reference
-    float priceVolume = na
+    float sourceVolume = na
     float totalVolume = na
 
     // Start if not already an anchor otherwise accumulate
-    priceVolume := anchor and not anchor[1] ? (price * volume) : priceVolume[1] + (price * volume)
+    sourceVolume := anchor and not anchor[1] ? (source * volume) : sourceVolume[1] + (source * volume)
     totalVolume := anchor and not anchor[1] ? volume : (totalVolume[1] + volume)
 
     // VWAP is Σ(P * V) / Σ(V)
-    priceVolume / totalVolume
+    sourceVolume / totalVolume
 
 
-plot(calculateVWAP(start <= time), "AVWAP", lineColor, lineWidth)
+plot(calculateVWAP(start <= time), title="AVWAP", color=color.purple, linewidth=2)
