@@ -1,0 +1,123 @@
+//@version=6
+indicator("Kalman Filter", shorttitle="Kalman", overlay=true)
+
+lineColor = input.color(color.lime, title="Color")
+
+source = input.source(hlc3, title="Source")
+
+processNoise = input.float(
+  0.1,
+  title="Process Noise",
+  minval=0.0,
+  maxval=1.0,
+  step=0.01,
+  tooltip="Controls how much the filter expects the underlying trend to change. Higher values adapt to trend changes faster, reducing smoothness (default: 0.1)")
+
+processNoiseCorrelation = input.float(
+  0.1,
+  title="Process Noise Correlation",
+  minval=0.0,
+  maxval=10.0,
+  step=0.1,
+  tooltip="Controls how much the noise in position and velocity are related to each other (default: 0.1)")
+
+observationNoise = input.float(
+  10.0,
+  title="Observation Noise",
+  minval=0.0,
+  maxval=100.0,
+  step=1.0,
+  tooltip="Controls how much the filter trusts new data versus existing predictions. Higher values place more weight on predictions, smoothing the output (default: 10.0)")
+
+velocityLookback = input.int(
+  50,
+  title="Velocity Lookback",
+  minval=2,
+  maxval=100,
+  step=1,
+  tooltip="Number of bars used to calculate the velocity color (default: 50)")
+
+colorByVelocity = input.bool(
+  true,
+  title="Color by velocity",
+  tooltip="Color the line based on velocity (default: true)")
+
+// Indicators
+var float filteredSource = na
+
+// State transition matrix (2x2)
+var F = matrix.new<float>(2, 2, 0.0)
+F.set(0, 0, 1.0) // position
+F.set(0, 1, 1.0) // velocity contribution to position
+F.set(1, 1, 1.0) // velocity
+
+// Error covariance matrix (2x2)
+var P = matrix.new<float>(2, 2, 0.0)
+matrix.set(P, 0, 0, 1.0)
+matrix.set(P, 1, 1, 1.0)
+
+// Process noise covariance matrix (2x2)
+var Q = matrix.new<float>(2, 2, 0.0)
+matrix.set(Q, 0, 0, processNoise)
+matrix.set(Q, 1, 1, processNoise)
+// cross terms
+matrix.set(Q, 0, 1, processNoise * processNoiseCorrelation)
+matrix.set(Q, 1, 0, processNoise * processNoiseCorrelation)
+
+// Observation noise covariance matrix (1x1)
+var R = matrix.new<float>(1, 1, observationNoise)
+
+// Observation matrix (1x2)
+var H = matrix.new<float>(1, 2, 0.0)
+matrix.set(H, 0, 0, 1.0) // only observe position
+
+// Identity matrix (2x2)
+var I = matrix.new<float>(2, 2, 0.0)
+matrix.set(I, 0, 0, 1.0)
+matrix.set(I, 1, 1, 1.0)
+
+// State vector (position and velocity)
+var X = array.from(0.0, 0.0)
+if barstate.isfirst
+    X := array.from(source, 0.0)
+
+// Update on bar close
+if barstate.isconfirmed
+    // 1. Predict next state
+    x1 = matrix.get(F, 0, 0) * array.get(X, 0) +
+         matrix.get(F, 0, 1) * array.get(X, 1)
+    x2 = matrix.get(F, 1, 1) * array.get(X, 1)
+    X := array.from(x1, x2)
+
+    // 2. Update prediction uncertainty
+    P := F.mult(P.mult(F.transpose())).sum(Q)
+
+    // 3. Calculate Kalman gain
+    R_copy = R.copy()
+    S = H.mult(P.mult(H.transpose())).sum(R_copy)
+    K = P.mult(H.transpose().mult(S.inv()))
+
+    // 4. Update state estimate based on observation
+    error = source - array.get(H.mult(X), 0)
+    correction = K.mult(error)
+    X := array.from(
+         array.get(X, 0) + matrix.get(correction, 0, 0),
+         array.get(X, 1) + matrix.get(correction, 1, 0))
+
+    // 5. Update uncertainty after observation
+    P := I.sum(K.mult(H).mult(-1)).mult(P)
+    filteredSource := array.get(X, 0)
+
+// Calculate trend strength based on velocity
+velocity = array.get(X, 1)
+velocityMax = ta.highest(velocity, velocityLookback)
+velocityMin = ta.lowest(velocity, velocityLookback)
+velocityRange = velocityMax - velocityMin
+velocityNorm = velocityRange == 0 ? 0.0 : ((velocity - velocityMin) / velocityRange * 200) - 100 // normalize to -100 to 100
+velocityColor = color.rgb(
+  velocityNorm < 0 ? 255 : 255 - math.abs(velocityNorm) * (255 / 100),
+  velocityNorm > 0 ? 255 : 255 - math.abs(velocityNorm) * (255 / 100),
+  0)
+
+// Plot the line
+plot(filteredSource, title="Line", color=colorByVelocity ? velocityColor : lineColor, linewidth=3)
