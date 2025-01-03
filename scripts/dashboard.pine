@@ -1,13 +1,18 @@
 //@version=6
 indicator("Dashboard", overlay=true)
 
-const color BG_COLOR = color.new(#000000, 20)
+const color BG_COLOR = color.new(#030712, 0) // gray-950
 const color TEXT_COLOR = color.new(#ffffff, 0)
 const color BORDER_COLOR = color.new(#ffffff, 50)
-const color BULLISH_COLOR = color.new(color.lime, 0)
-const color BEARISH_COLOR = color.new(color.red, 0)
 
-tableSource = input.source(hlc3, "Source")
+const color BULLISH_COLOR = color.new(#2dd4bf, 0) // teal-400
+const color BEARISH_COLOR = color.new(#fb7185, 0) // rose-400
+
+const color BULLISH_RISING_COLOR = color.new(#14b8a6, 0)  // teal-500
+const color BULLISH_FALLING_COLOR = color.new(#5eead4, 0) // teal-300
+
+const color BEARISH_RISING_COLOR = color.new(#fda4af, 0)  // rose-300
+const color BEARISH_FALLING_COLOR = color.new(#f43f5e, 0) // rose-500
 
 tablePosition = input.string(
   "bottom_right",
@@ -19,65 +24,60 @@ tableTextSize = input.string(
   title="Size",
   options=["auto", "huge", "large", "normal", "small", "tiny"])
 
-// Custom settings group
-var g1 = "Custom Indicator"
-showCustom = input.bool(false, "Enable custom indicator", group=g1)
-customSource = input.source(close, "Custom Source", group=g1, display=display.none)
-customName = input.string("Close", "Custom Name", group=g1, display=display.none)
 
-// Calculate number of rows based on settings
-var numRows = showCustom ? 6 : 5
+// Function to add a row to the table
+insertTableRow(series table t, int row, string label, string value, color valueColor) =>
+    table.cell(t, 0, row, label, text_color=TEXT_COLOR, text_size=tableTextSize, text_halign=text.align_left, text_formatting=text.format_bold)
+    table.cell(t, 1, row, value, text_color=valueColor, text_size=tableTextSize)
+
 
 // Create table
 var tbl = table.new(
   tablePosition,
   columns=2,
-  rows=numRows,
+  rows=6,
   bgcolor=BG_COLOR,
   frame_width=1,
   frame_color=BORDER_COLOR,
   border_width=1,
   border_color=BORDER_COLOR)
 
-
-// Function to add a row to the table
-tableRow(int row, string label, string value, color value_color) =>
-    table.cell(tbl, 0, row, label, text_color=TEXT_COLOR, text_size=tableTextSize, text_halign=text.align_left, text_formatting=text.format_bold)
-    table.cell(tbl, 1, row, value, text_color=value_color, text_size=tableTextSize)
-
-
 // Calculate indicators
 atr = ta.atr(14)
-rsi = ta.rsi(tableSource, 14)
-sma50 = ta.sma(tableSource, 50)
-sma200 = ta.sma(tableSource, 200)
-
-// Calculate percentage change
-percentChange = ((close - close[1]) / close[1]) * 100
+rsi = ta.rsi(close, 14)
+sma50 = ta.sma(close, 50)
+sma200 = ta.sma(close, 200)
+[_, _, macd] = ta.macd(close, 12, 26, 9) // only need the histogram
 
 // Only update when the bar closes
 if barstate.isconfirmed
-    // Percentage change with arrow
-    changeSymbol = percentChange >= 0 ? "△" : "▽"
-    changeColor = percentChange >= 0 ? BULLISH_COLOR : BEARISH_COLOR
-    changeText = changeSymbol + " " + str.tostring(math.abs(percentChange), "#.##") + "%"
-    tableRow(0, "Change", changeText, changeColor)
-
-    // 50 SMA with color formatting
-    sma50Color = close > sma50 ? BULLISH_COLOR : BEARISH_COLOR
-    tableRow(1, "SMA50", str.tostring(sma50, "#.##"), sma50Color)
+    // Percentage change with color formatting
+    closeChange = ((close - close[1]) / close[1]) * 100
+    closeChangeSymbol = closeChange >= 0 ? "△" : "▽"
+    closeChangeColor = closeChange >= 0 ? BULLISH_COLOR : BEARISH_COLOR
+    closeChangeText = closeChangeSymbol + " " + str.tostring(math.abs(closeChange), "0.00") + "%"
+    insertTableRow(tbl, 0, "Change", closeChangeText, closeChangeColor)
 
     // 200 SMA with color formatting
     sma200Color = close > sma200 ? BULLISH_COLOR : BEARISH_COLOR
-    tableRow(2, "SMA200", str.tostring(sma200, "#.##"), sma200Color)
+    insertTableRow(tbl, 1, "SMA200", str.tostring(sma200, "0.00"), sma200Color)
 
-    // RSI with color formatting
+    // 50 SMA with color formatting
+    sma50Color = close > sma50 ? BULLISH_COLOR : BEARISH_COLOR
+    insertTableRow(tbl, 2, "SMA50", str.tostring(sma50, "0.00"), sma50Color)
+
+    // MACD with rising and falling color formatting
+    macdRising = macd > macd[1]
+    macdSymbol = macdRising ? "↗" : "↘"
+    macdColor = macd > 0 ?
+      (macdRising ? BULLISH_RISING_COLOR : BULLISH_FALLING_COLOR) :
+      (macdRising ? BEARISH_RISING_COLOR : BEARISH_FALLING_COLOR)
+    macdText = str.tostring(macd, "0.00") + " " + macdSymbol
+    insertTableRow(tbl, 3, "MACD", macdText, macdColor)
+
+    // RSI with overbought/oversold color formatting
     rsiColor = rsi >= 70 ? BEARISH_COLOR : rsi <= 30 ? BULLISH_COLOR : TEXT_COLOR
-    tableRow(3, "RSI", str.tostring(rsi, "#.##"), rsiColor)
-     
-    // ATR
-    tableRow(4, "ATR", str.tostring(atr, "#.##"), TEXT_COLOR)
+    insertTableRow(tbl, 4, "RSI", str.tostring(rsi, "0.00"), rsiColor)
 
-    // Custom indicator if enabled
-    if showCustom
-        tableRow(5, customName, str.tostring(customSource, "#.##"), TEXT_COLOR)
+    // ATR
+    insertTableRow(tbl, 5, "ATR", str.tostring(atr, "0.00"), TEXT_COLOR)
