@@ -1,5 +1,5 @@
 //@version=6
-indicator("Moving Average", "MA", overlay=true, timeframe="", timeframe_gaps=true) // enable multi-timeframe
+indicator("Moving Average", overlay=true, timeframe="", timeframe_gaps=true) // enable multi-timeframe
 
 // Tooltips
 var smaTooltip = "SMA:  The sum of last y values of x, divided by y."
@@ -10,15 +10,15 @@ var wmaTooltip = "WMA:  Weighted moving average."
 var vwmaTooltip = "VWMA: Volume weighted moving average."
 var kindTooltip = smaTooltip + "\n" + emaTooltip + "\n" + rmaTooltip + "\n" + hmaTooltip + "\n" + wmaTooltip + "\n" + vwmaTooltip
 
+lineColor = input.color(color.new(#a78bfa, 0), title="Color") // violet-400
+
+source = input(hlc3, title="Source")
+
 kind = input.string(
   "SMA",
   title="Kind",
   tooltip=kindTooltip,
   options=["SMA", "EMA", "RMA", "HMA", "WMA", "VWMA"])
-
-price = input(
-  hlc3,
-  title="Source")
 
 length = input.int(
   20,
@@ -32,26 +32,10 @@ offset = input.int(
   maxval=500,
   display=display.data_window)
 
-enableSmoothing = input.bool(
+colorByTrend = input.bool(
   false,
-  "Enable Smoothing",
-  group="Smoothing",
-  display=display.data_window)
-
-smoothingKind = input.string(
-  "SMA",
-  "Kind",
-  group="Smoothing",
-  display=display.data_window,
-  options=["SMA", "EMA", "RMA", "HMA", "WMA", "VWMA"])
-
-smoothingLength = input.int(
-  5,
-  "Length",
-  minval=1,
-  maxval=100,
-  group="Smoothing",
-  display=display.data_window)
+  title="Color by trend",
+  tooltip="Color the moving average based on the trend rate of change")
 
 
 // Calculate moving average by kind
@@ -66,10 +50,22 @@ maByKind(src, len, k) =>
 
 
 // Plot moving average
-ma = maByKind(price, length, kind)
-plot(ma, "MA", color=color.blue, offset=offset)
+ma = maByKind(source, length, kind)
 
-// Plot smoothing line
-displayLine = enableSmoothing ? display.all : display.none
-smoothingLine = enableSmoothing ? maByKind(ma, smoothingLength, smoothingKind) : na
-plot(smoothingLine, "MA Smooth", color=#f37f20, offset=offset, display=displayLine)
+// Get trend strength
+trend = ta.roc(ma, 1)
+trendMax = ta.highest(trend, length)
+trendMin = ta.lowest(trend, length)
+trendRange = trendMax - trendMin
+trendNorm = trendRange == 0 ? 0.0 : ((trend - trendMin) / trendRange * 200) - 100 // normalize to -100 to 100
+trendColor = color.rgb(
+  trendNorm < 0 ? 255 : 255 - math.abs(trendNorm) * (255 / 100),
+  trendNorm > 0 ? 255 : 255 - math.abs(trendNorm) * (255 / 100),
+  0)
+
+plot(
+  ma,
+  title="Line",
+  color=colorByTrend ? trendColor : lineColor,
+  linewidth=2,
+  offset=offset)
