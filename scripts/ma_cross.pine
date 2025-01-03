@@ -1,0 +1,56 @@
+//@version=6
+indicator("Moving Average Cross", overlay=true, timeframe="", timeframe_gaps=true)
+
+// Colors
+const color FAST_COLOR = #22d3ee       // cyan-400
+const color SLOW_COLOR = #a78bfa       // violet-400
+const color CROSSOVER_COLOR = #14b8a6  // teal-500
+const color CROSSUNDER_COLOR = #f43f5e // rose-500
+
+// Inputs
+kind = input.string("HMA", "Kind", options=["SMA", "EMA", "WMA", "RMA", "HMA", "VWMA"])
+fastLength = input.int(15, "Fast", minval=2, step=1)
+slowLength = input.int(150, "Slow", minval=2, step=1)
+showLines = input.bool(false, "Show lines")
+
+
+// Moving averages
+maByKind(src, len, k) =>
+    switch k
+        "SMA"  => ta.sma(src, len)
+        "EMA"  => ta.ema(src, len)
+        "RMA"  => ta.rma(src, len)
+        "HMA"  => ta.hma(src, len)
+        "WMA"  => ta.wma(src, len)
+        "VWMA" => ta.vwma(src, len)
+
+
+ma1 = maByKind(close, fastLength, kind)
+ma2 = maByKind(close, slowLength, kind)
+
+alertcondition(
+  ta.crossunder(ma1, ma2),
+  title="Crossunder",
+  message="Fast MA crossed under Slow MA")
+alertcondition(
+  ta.crossover(ma1, ma2),
+  title="Crossover",
+  message="Fast MA crossed over Slow MA")
+
+plot(showLines ? ma1 : na, title="Fast", color=FAST_COLOR, linewidth=1)
+plot(showLines ? ma2 : na, title="Slow", color=SLOW_COLOR, linewidth=1)
+
+plotshape(
+  ta.crossunder(ma1, ma2) ? ma2 : na,
+  title="Crossunder",
+  size=size.small,
+  style=shape.triangledown,
+  location=location.abovebar,
+  color=CROSSUNDER_COLOR)
+plotshape(
+  ta.crossover(ma1, ma2) ? ma1 : na,
+  title="Crossover",
+  size=size.small,
+  style=shape.triangleup,
+  location=location.belowbar,
+  color=CROSSOVER_COLOR)
