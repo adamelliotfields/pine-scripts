@@ -1,0 +1,75 @@
+//@version=6
+indicator("Average Directional Index", shorttitle="ADX", format=format.price, precision=2)
+
+const color BULLISH_RISING_COLOR = color.new(#14b8a6, 0)  // teal-500
+const color BULLISH_FALLING_COLOR = color.new(#5eead4, 0) // teal-300
+
+const color BEARISH_RISING_COLOR = color.new(#fda4af, 0)  // rose-300
+const color BEARISH_FALLING_COLOR = color.new(#f43f5e, 0) // rose-500
+
+// Settings
+diLength = input.int(14, title="DI Length", minval=2, step=1)
+adxLength = input.int(14, title="ADX Length", minval=2, step=1)
+
+var g1 = "Histogram"
+maKind = input.string("VWMA", title="Moving Average Kind", options=["None", "SMA", "EMA", "RMA", "HMA", "WMA", "VWMA"], group=g1)
+maLength = input.int(5, title="Moving Average Length", minval=2, step=1, group=g1)
+
+
+// Calculate moving average by kind if not None
+maByKind(src, len, k) =>
+    switch k
+        "SMA"  => ta.sma(src, len)
+        "EMA"  => ta.ema(src, len)
+        "RMA"  => ta.rma(src, len)
+        "HMA"  => ta.hma(src, len)
+        "WMA"  => ta.wma(src, len)
+        "VWMA" => ta.vwma(src, len)
+        => src
+
+
+// Get a tuple of directional indicators
+getDirectionalIndicators(length) =>
+    up = ta.change(high)
+    down = -ta.change(low)
+    plus = na(up) ? na : (up > down and up > 0 ? up : 0)
+    minus = na(down) ? na : (down > up and down > 0 ? down : 0)
+    trueRange = ta.rma(ta.tr, length)
+    [fixnan(100 * ta.rma(plus, length) / trueRange),
+     fixnan(100 * ta.rma(minus, length) / trueRange)]
+
+
+[plus, minus] = getDirectionalIndicators(diLength)
+sum = plus + minus
+diff = plus - minus
+
+// Calculate ADX using relative moving average used in RSI
+signal = 100 * ta.rma(math.abs(diff) / (sum == 0 ? 1 : sum), adxLength) // no division by zero
+
+// Apply moving average to the DI difference for histogram
+hist = maByKind(diff, maLength, maKind)
+
+// Alerts
+alertcondition(
+  hist[1] >= 0 and hist < 0,
+  title="Rising to falling",
+  message="The ADX switched from a rising to falling state")
+alertcondition(
+  hist[1] <= 0 and hist > 0,
+  title="Falling to rising",
+  message="The ADX switched from a falling to rising state")
+
+// Plot ADX line
+plot(signal, title="Line", color=color.new(#3b82f6, 0)) // blue-500
+
+// Plot ADX histogram
+plot(
+  hist,
+  title="Histogram",
+  style=plot.style_columns,
+  color=hist >= 0 ?
+      (hist[1] < hist ? BULLISH_RISING_COLOR : BULLISH_FALLING_COLOR) :
+      (hist[1] < hist ? BEARISH_RISING_COLOR : BEARISH_FALLING_COLOR))
+
+// Add zero line
+hline(0, title="Zero", color=color.new(#6b7280, 50)) // gray-500/50
