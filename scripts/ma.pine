@@ -10,7 +10,7 @@ var wmaTooltip = "WMA:  Weighted moving average."
 var vwmaTooltip = "VWMA: Volume weighted moving average."
 var kindTooltip = smaTooltip + "\n" + emaTooltip + "\n" + rmaTooltip + "\n" + hmaTooltip + "\n" + wmaTooltip + "\n" + vwmaTooltip
 
-lineColor = input.color(color.new(#a78bfa, 0), title="Color") // violet-400
+lineColor = input.color(color.new(#e879f9, 0), title="Color") // fuchsia-400
 
 source = input(hlc3, title="Source")
 
