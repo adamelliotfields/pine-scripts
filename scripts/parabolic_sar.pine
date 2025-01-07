@@ -1,0 +1,45 @@
+//@version=6
+indicator(title="Parabolic SAR", overlay=true, timeframe="", timeframe_gaps=true)
+
+lineColor = input.color(color.new(#3b82f6, 0), title="Color") // blue-500
+start = input(0.02, title="Start", tooltip="Acceleration factor starting value (default: 0.02)")
+step = input(0.02, title="Step", tooltip="Acceleration factor step value (default: 0.02)")
+maximum = input(0.1, title="Max", tooltip="Maximum acceleration factor (default: 0.1)")
+lookback = input(10, title="Lookback", tooltip="Number of bars used to calculate the dot color (default: 10)")
+colorByDistance = input.bool(true, title="Color by distance", tooltip="Color the dots based on distance from price (default: true)")
+
+// The acceleration factor starts at 0.02 and increases by 0.02 each time the extreme point makes a new high
+// The maximum value for the acceleration factor is normally 0.2
+// Lowering it reduces sensitivity (fewer whipsaws)
+sar = ta.sar(start, step, maximum)
+
+// Calculate absolute distance from price
+distance = math.abs(sar - close)
+
+// Normalize by comparing to the highest distance in the lookback window
+maxDistance = ta.highest(distance, lookback)
+normalizedDistance = distance / maxDistance * 100
+
+// Bullish gradient from dark blue to light cyan
+// Keep R low and B high for blue base, and increase G as distance decreases
+bullColor = color.rgb(75, 75 + math.min((100 - normalizedDistance) * 1.8, 180), 255)
+
+// Bearish gradient from dark orange to light yellow
+// Keep R high and B low for red base, and increase G as distance decreases
+bearColor = color.rgb(255, 75 + math.min((100 - normalizedDistance) * 1.8, 180), 75)
+
+alertcondition(
+  sar[1] < close[1] and sar > close,
+  title="Bullish Reversal",
+  message="Parabolic SAR bullish reversal")
+alertcondition(
+  sar[1] > close[1] and sar < close,
+  title="Bearish Reversal",
+  message="Parabolic SAR bearish reversal")
+
+plot(
+  sar,
+  "Dots",
+  style=plot.style_circles,
+  color=colorByDistance ? (sar < close ? bullColor : bearColor) : lineColor,
+  linewidth=1)
