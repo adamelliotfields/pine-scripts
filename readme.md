@@ -175,7 +175,7 @@ For example, the Apple January 3, 2025 $250 call is [AAPL250103C250.0](https://w
 
 ### Hotkeys
 
-Start typing a number (or <kbd>,</kbd>) to change the interval or letters to change the symbol. Press <kbd>/<kbd> to open the indicator list.
+Start typing a number (or <kbd>,</kbd>) to change the interval or letters to change the symbol. Press <kbd>/</kbd> to open the indicator list.
 
 * <kbd>Ctrl</kbd>+<kbd>/</kbd>: Show all hotkeys.
 * <kbd>Ctrl</kbd>+<kbd>K</kbd>: Quick search (similar to command palette).
