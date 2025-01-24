@@ -1,7 +1,7 @@
 //@version=6
 
 // https://www.tradingview.com/script/2HmHKuo1-Fibonacci-Toolkit-LuxAlgo © LuxAlgo (CC BY-NC-SA 4.0)
-indicator("Fibonacci", overlay=true)
+indicator("Anchored Fibonacci", shorttitle="Fibonacci", overlay=true)
 
 extendRetracements = input.bool(true, "Extend Retracements")
 start = input.time(0, "Start", confirm=true)
