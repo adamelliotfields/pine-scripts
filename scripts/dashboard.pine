@@ -17,67 +17,91 @@ const color BEARISH_FALLING_COLOR = color.new(#f43f5e, 0) // rose-500
 tablePosition = input.string(
   "bottom_right",
   title="Location",
+  display=display.none,
   options=["top_right", "middle_right", "bottom_right", "top_center", "middle_center", "bottom_center", "top_left", "middle_left", "bottom_left"])
 
 tableTextSize = input.string(
   "normal",
   title="Size",
+  display=display.none,
   options=["auto", "huge", "large", "normal", "small", "tiny"])
+
+showPriceTarget = input.bool(true, title="Show price target")
+showEarningsDate = input.bool(true, title="Show earnings date")
 
 
 // Function to add a row to the table
-insertTableRow(series table t, int row, string label, string value, color valueColor) =>
+insertTableRow(table t, int row, string label, string value, color valueColor) =>
     table.cell(t, 0, row, label, text_color=TEXT_COLOR, text_size=tableTextSize, text_halign=text.align_left, text_formatting=text.format_bold)
     table.cell(t, 1, row, value, text_color=valueColor, text_size=tableTextSize)
 
 
-// Create table
+var numRows = 7 + (showPriceTarget ? 1 : 0) + (showEarningsDate ? 1 : 0)
+
 var tbl = table.new(
   tablePosition,
   columns=2,
-  rows=6,
+  rows=numRows,
   bgcolor=BG_COLOR,
   frame_width=1,
   frame_color=BORDER_COLOR,
   border_width=1,
   border_color=BORDER_COLOR)
 
-// Calculate indicators
-atr = ta.atr(14)
-rsi = ta.rsi(close, 14)
-sma50 = ta.sma(close, 50)
-sma200 = ta.sma(close, 200)
+var earningsDate = earnings.future_time
+
+float atr = ta.atr(14)
+float rsi = ta.rsi(close, 14)
+float sma20 = ta.sma(close, 20)
+float sma50 = ta.sma(close, 50)
+float sma200 = ta.sma(close, 200)
 [_, _, macd] = ta.macd(close, 12, 26, 9) // only need the histogram
 
-// Only update when the bar closes
-if barstate.isconfirmed
+if barstate.islast
     // Percentage change with color formatting
-    closeChange = ((close - close[1]) / close[1]) * 100
-    closeChangeSymbol = closeChange >= 0 ? "△" : "▽"
-    closeChangeColor = closeChange >= 0 ? BULLISH_COLOR : BEARISH_COLOR
-    closeChangeText = closeChangeSymbol + " " + str.tostring(math.abs(closeChange), "0.00") + "%"
+    float closeChange = ((close - close[1]) / close[1]) * 100
+    color closeChangeColor = closeChange >= 0 ? BULLISH_COLOR : BEARISH_COLOR
+    string closeChangeSymbol = closeChange >= 0 ? "△" : "▽"
+    string closeChangeText = closeChangeSymbol + " " + str.tostring(math.abs(closeChange), "0.00") + "%"
     insertTableRow(tbl, 0, "Change", closeChangeText, closeChangeColor)
 
     // 200 SMA with color formatting
-    sma200Color = close > sma200 ? BULLISH_COLOR : BEARISH_COLOR
+    color sma200Color = close > sma200 ? BULLISH_COLOR : BEARISH_COLOR
     insertTableRow(tbl, 1, "SMA200", str.tostring(sma200, "0.00"), sma200Color)
 
     // 50 SMA with color formatting
-    sma50Color = close > sma50 ? BULLISH_COLOR : BEARISH_COLOR
+    color sma50Color = close > sma50 ? BULLISH_COLOR : BEARISH_COLOR
     insertTableRow(tbl, 2, "SMA50", str.tostring(sma50, "0.00"), sma50Color)
 
+    // 20 SMA with color formatting
+    color sma20Color = close > sma20 ? BULLISH_COLOR : BEARISH_COLOR
+    insertTableRow(tbl, 3, "SMA20", str.tostring(sma20, "0.00"), sma20Color)
+
     // MACD with rising and falling color formatting
-    macdRising = macd > macd[1]
-    macdSymbol = macdRising ? "↗" : "↘"
-    macdColor = macd > 0 ?
+    bool macdRising = macd > macd[1]
+    color macdColor = macd > 0 ?
       (macdRising ? BULLISH_RISING_COLOR : BULLISH_FALLING_COLOR) :
       (macdRising ? BEARISH_RISING_COLOR : BEARISH_FALLING_COLOR)
-    macdText = str.tostring(macd, "0.00") + " " + macdSymbol
-    insertTableRow(tbl, 3, "MACD", macdText, macdColor)
+    string macdSymbol = macdRising ? "↗" : "↘"
+    string macdText = str.tostring(macd, "0.00") + " " + macdSymbol
+    insertTableRow(tbl, 4, "MACD", macdText, macdColor)
 
     // RSI with overbought/oversold color formatting
-    rsiColor = rsi >= 70 ? BEARISH_COLOR : rsi <= 30 ? BULLISH_COLOR : TEXT_COLOR
-    insertTableRow(tbl, 4, "RSI", str.tostring(rsi, "0.00"), rsiColor)
+    color rsiColor = rsi >= 70 ? BEARISH_COLOR : rsi <= 30 ? BULLISH_COLOR : TEXT_COLOR
+    insertTableRow(tbl, 5, "RSI", str.tostring(rsi, "0.00"), rsiColor)
 
     // ATR
-    insertTableRow(tbl, 5, "ATR", str.tostring(atr, "0.00"), TEXT_COLOR)
+    insertTableRow(tbl, 6, "ATR", str.tostring(atr, "0.00"), TEXT_COLOR)
+
+    // Price target
+    if showPriceTarget
+        float priceTarget = syminfo.target_price_average
+        color priceTargetColor = close < priceTarget ? BULLISH_COLOR : BEARISH_COLOR
+        string priceTargetText = na(priceTarget) ? "0.00" : str.tostring(priceTarget, "0.00")
+        insertTableRow(tbl, 7, "🎯", priceTargetText, na(priceTarget) ? TEXT_COLOR : priceTargetColor)
+
+    // Earnings date
+    int rowNum = 7 + (showPriceTarget ? 1 : 0)
+    if showEarningsDate
+        string earningsDateText = na(earningsDate) ? "?" : str.format_time(earningsDate, "M/d (a)")
+        insertTableRow(tbl, rowNum, "📅", earningsDateText, TEXT_COLOR)
