@@ -8,10 +8,11 @@ const color CROSSOVER_COLOR = #14b8a6  // teal-500
 const color CROSSUNDER_COLOR = #f43f5e // rose-500
 
 // Inputs
-kind = input.string("HMA", "Kind", options=["SMA", "EMA", "WMA", "RMA", "HMA", "VWMA"])
-fastLength = input.int(15, "Fast", minval=2, step=1)
-slowLength = input.int(150, "Slow", minval=2, step=1)
-showLines = input.bool(false, "Show lines")
+source = input.source(close, "Source")
+kind = input.string("SMA", "Kind", options=["SMA", "EMA", "WMA", "RMA", "HMA", "VWMA"])
+fastLength = input.int(50, "Fast", minval=2, step=1)
+slowLength = input.int(200, "Slow", minval=2, step=1)
+showLines = input.bool(true, "Show lines")
 
 
 // Moving averages
@@ -25,8 +26,8 @@ maByKind(src, len, k) =>
         "VWMA" => ta.vwma(src, len)
 
 
-ma1 = maByKind(close, fastLength, kind)
-ma2 = maByKind(close, slowLength, kind)
+ma1 = maByKind(source, fastLength, kind)
+ma2 = maByKind(source, slowLength, kind)
 
 alertcondition(
   ta.crossunder(ma1, ma2),
