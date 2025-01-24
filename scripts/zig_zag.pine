@@ -1,0 +1,204 @@
+//@version=6
+indicator("Zig Zag", overlay=true)
+
+type Settings
+    float  devThreshold
+    int    depth
+    color  lineColor
+    color  bullishColor
+    color  bearishColor
+    bool   displayReversalPrice
+    bool   displayReversalPriceChange
+    string differencePriceMode
+    float  atrMultiplier
+
+type Pivot
+    line        ln
+    label       lb
+    bool        isHigh
+    chart.point start
+    chart.point end
+
+type ZigZag
+    Settings     settings
+    array<Pivot> pivots
+
+
+// Identifies a pivot point by examining windows of bars before and after the potential pivot.
+// Finds pivot highs when `isHigh` is `true`, and finds pivot lows otherwise.
+findPivotPoint(float src, float length, bool isHigh) =>
+    // Initialize the pivot to `src[length]`. For example:
+    // * User enters `depth=10`.
+    // * The `render` method halves it to `5`.
+    // * The first pivot point considered is `src[5]`.
+    // * The bars from src[0..4] are used to determine if `src[5]` is a pivot.
+    // * Then bars src[6..10] are used to confirm.
+    float pivotPrice = nz(src[length])
+    // Handle edge cases.
+    if length == 0
+        chart.point.new(time, bar_index, pivotPrice)
+    // Ensure we have enough bars to check two windows.
+    else if length * 2 <= bar_index
+        bool isFound = true
+        // The first loop checks the bars after the pivot.
+        for i = 0 to math.abs(length - 1)
+            if (isHigh and src[i] > pivotPrice) or (not isHigh and src[i] < pivotPrice)
+                isFound := false
+                break
+        // The second loop checks the bars before the pivot.
+        // The equality check is so only the most recent pivot is considered.
+        for i = length + 1 to 2 * length
+            if (isHigh and src[i] >= pivotPrice) or (not isHigh and src[i] <= pivotPrice)
+                isFound := false
+                break
+        // Plot the pivot point and price.
+        if isFound
+            chart.point.new(time[length], bar_index[length], pivotPrice)
+
+
+// Calculates the difference between the `start` and `end` point as a price or percentage difference and converts its value to a `string`.
+priceRotationDiff(float start, float end, Settings settings) =>
+    float diff = end - start
+    string sign = math.sign(diff) > 0 ? "+" : ""
+    string diffStr = switch settings.differencePriceMode
+        "Absolute" => str.tostring(diff, format.mintick)
+        => str.tostring(diff * 100 / start, format.percent)
+    str.format("({0}{1})", sign, diffStr) // template syntax
+
+
+// Creates a `string` containing the price and change in price for the pivot.
+priceRotationAggregate(float start, float end, Settings settings) =>
+    string str = ""
+    if settings.displayReversalPrice
+        str += str.tostring(end, format.mintick)
+    if settings.displayReversalPriceChange
+        str += " " + priceRotationDiff(start, end, settings)
+    str
+
+
+// Creates a label with coordinates from the `point` if enabled in `settings`.
+makePivotLabel(bool isHigh, chart.point point, Settings settings) =>
+    if settings.displayReversalPrice or settings.displayReversalPriceChange
+        [yloc, txtColor] = switch
+            isHigh => [yloc.abovebar, settings.bullishColor]
+            => [yloc.belowbar, settings.bearishColor]
+        label.new(point, style=label.style_none, xloc=xloc.bar_time, yloc=yloc, textcolor=txtColor)
+
+
+// Updates a `Pivot` object's properties, including its `end` point, cumulative volume, label text, and label and line drawing locations.
+method updatePivot(Pivot this, chart.point end, Settings settings) =>
+    this.end := end
+    if not na(this.lb)
+        this.lb.set_point(this.end)
+        this.lb.set_text(priceRotationAggregate(this.start.price, this.end.price, settings))
+    this.ln.set_second_point(this.end)
+
+
+// Determines whether the `price` of the `point` reaches past the `price` of the `end` chart point of a `Pivot` object.
+method isMorePrice(Pivot this, chart.point point) =>
+    int m = this.isHigh ? 1 : -1
+    point.price * m > this.end.price * m
+
+
+// Creates a new `Pivot` object, and assigns a line and label.
+newPivot(chart.point start, chart.point end, bool isHigh, Settings settings) =>
+    Pivot p = Pivot.new(na, na, isHigh, start, end)
+    p.ln := line.new(start, end, xloc=xloc.bar_time, color=settings.lineColor, width=2)
+    p.lb := makePivotLabel(isHigh, end, settings)
+    p.updatePivot(end, settings)
+    p
+
+
+// Returns the last `Pivot` object from a `ZigZag` instance if it contains at least one `Pivot`, and `na` otherwise.
+method lastPivot(ZigZag this) =>
+    int numberOfPivots = this.pivots.size()
+    numberOfPivots > 0 ? this.pivots.get(numberOfPivots - 1) : na
+
+
+// Updates the fields of the last `Pivot` in a `ZigZag` object and sets the `sumVol` of the `ZigZag` to 0.
+method updateLastPivot(ZigZag this, chart.point point) =>
+    Pivot lastPivot = this.lastPivot()
+    if this.pivots.size() == 1
+        lastPivot.start := point
+        lastPivot.ln.set_first_point(point)
+    lastPivot.updatePivot(point, this.settings)
+
+
+// Determines if a new pivot point is detected or if the properties of the last `Pivot` in the `ZigZag` need to be updated by comparing the `end` of the last `Pivot` to a new `point`.
+// Updates the `ZigZag` and returns `true` if either condition occurs.
+method newPivotPointFound(ZigZag this, bool isHigh, chart.point point, float atr) =>
+    bool result = false
+    Pivot lastPivot = this.lastPivot()
+    if not na(lastPivot)
+        // New point has the same direction as the last pivot, update if higher/lower.
+        if lastPivot.isHigh == isHigh
+            if lastPivot.isMorePrice(point)
+                this.updateLastPivot(point)
+                result := true
+        // New point is in a different direction, create a new pivot if the deviation is greater than the threshold.
+        else
+            float dev = 0.0
+            float threshold = 0.0
+            if not na(atr)
+                dev := point.price - lastPivot.end.price
+                threshold := atr * this.settings.atrMultiplier
+            else
+                dev := 100 * (point.price - lastPivot.end.price) / math.abs(lastPivot.end.price)
+                threshold := this.settings.devThreshold
+            if (not lastPivot.isHigh and dev >= threshold) or (lastPivot.isHigh and dev <= -1 * threshold)
+                this.pivots.push(newPivot(lastPivot.end, point, isHigh, this.settings))
+                result := true
+    // First pivot point.
+    else
+        this.pivots.push(newPivot(point, point, isHigh, this.settings))
+        result := true
+    result
+
+
+// Tries to find a new pivot point for the `ZigZag` instance.
+// Updates the `ZigZag` and returns `true` when it registers a detected pivot.
+method tryFindPivot(ZigZag this, float src, bool isHigh, int depth, float atr) =>
+    chart.point point = findPivotPoint(src, depth, isHigh)
+    not na(point) ? this.newPivotPointFound(isHigh, point, atr) : false
+
+
+// Updates a `ZigZag` objects with new pivots, volume, lines, and labels.
+// NOTE: This function must be called on every bar for accurate calculations.
+method render(ZigZag this, float atr) =>
+    int depth = math.max(2, math.floor(this.settings.depth / 2))
+    bool somethingChanged = this.tryFindPivot(high, true, depth, atr)
+    this.tryFindPivot(low, false, depth, atr) or somethingChanged
+
+
+deviationInput = input.float(5.0, "Deviation (%)", minval=0.01, maxval=100.0, step=1.0)
+depthInput = input.int(20, "Depth", minval=4, step=1)
+lineColorInput = input.color(color.new(#38bdf8, 20), "Line Color") // sky-400
+bullishColorInput = input.color(color.new(#34d399, 10), "Bullish Color") // emerald-400
+bearishColorInput = input.color(color.new(#f472b6, 10), "Bearish Color") // pink-400
+showPriceInput = input.bool(true, "Display Reversal Price")
+showChgInput = input.bool(true, "Display Reversal Price Change", inline="inline1")
+priceDiffInput = input.string("Percent", "", options=["Absolute", "Percent"], inline="inline1", display=display.none)
+
+// ATR settings
+atrLengthInput = input.int(10, "Length", minval=1, step=1, group="ATR")
+atrMultiplierInput = input.float(3.0, "Multiplier", minval=0.1, step=0.1, group="ATR")
+useAtrDeviationInput = input.bool(true, "Use ATR deviation", group="ATR", tooltip='Use ATR as the deviation value (overrides the "Deviation (%)" input) (default: true)')
+
+var Settings settings = Settings.new(
+  deviationInput,
+  depthInput,
+  lineColorInput,
+  bullishColorInput,
+  bearishColorInput,
+  showPriceInput,
+  showChgInput,
+  priceDiffInput,
+  atrMultiplierInput)
+var pivots = array.new<Pivot>()
+var ZigZag zigZag = ZigZag.new(settings, pivots)
+
+float atr = na
+if useAtrDeviationInput
+    atr := ta.atr(atrLengthInput)
+
+zigZag.render(atr)
