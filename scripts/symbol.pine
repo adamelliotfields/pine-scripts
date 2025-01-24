@@ -1,0 +1,29 @@
+//@version=6
+indicator("Symbol", format=format.price, precision=2)
+
+const color BULLISH_BODY_COLOR = color.new(#22c55e, 0) // green-500
+const color BEARISH_BODY_COLOR = color.new(#ef4444, 0) // red-500
+
+const color BULLISH_BORDER_COLOR = color.new(#16a34a, 0) // green-600
+const color BEARISH_BORDER_COLOR = color.new(#dc2626, 0) // red-600
+
+const color MA_LINE_COLOR = color.new(#60a5fa, 0) // blue-400
+
+string symbol = input.string("TVC:VIX", title="Symbol", tooltip="Symbol (e.g., \"AAPL\") or ticker ID (e.g., \"NASDAQ:AAPL\")")
+
+var maGroup = "Simple Moving Average"
+int maLength = input.int(20, title="Length", minval=2, step=1, group=maGroup)
+color maColor = input.color(MA_LINE_COLOR, title="Color", group=maGroup)
+bool maEnable = input.bool(true, title="Enable", group=maGroup)
+
+[O, H, L, C] = request.security(symbol, timeframe.period, [open, high, low, close])
+color bodyColor = C > O ? BULLISH_BODY_COLOR : BEARISH_BODY_COLOR
+color wickColor = C > O ? BULLISH_BORDER_COLOR : BEARISH_BORDER_COLOR
+color borderColor = C > O ? BULLISH_BORDER_COLOR : BEARISH_BORDER_COLOR
+
+// Calculate simple moving average
+float ma = ta.sma(C, maLength)
+
+// Plot
+plot(maEnable ? ma : na, title="Line", color=maColor, linewidth=1)
+plotcandle(O, H, L, C, title="Candles", color=bodyColor, wickcolor=wickColor, bordercolor=borderColor)
