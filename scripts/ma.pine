@@ -12,7 +12,7 @@ var kindTooltip = smaTooltip + "\n" + emaTooltip + "\n" + rmaTooltip + "\n" + hm
 
 lineColor = input.color(color.new(#e879f9, 0), title="Color") // fuchsia-400
 
-source = input(hlc3, title="Source")
+source = input.source(close, title="Source")
 
 kind = input.string(
   "SMA",
@@ -33,7 +33,7 @@ offset = input.int(
   display=display.data_window)
 
 colorByTrend = input.bool(
-  false,
+  true,
   title="Color by trend",
   tooltip="Color the moving average based on the trend rate of change")
 
