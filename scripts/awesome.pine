@@ -1,0 +1,43 @@
+//@version=6
+indicator(title="Awesome Oscillator", shorttitle="Awesome", format=format.price, precision=2)
+
+const color BULLISH_COLOR = color.new(#14b8a6, 0) // teal-500
+const color BEARISH_COLOR = color.new(#f43f5e, 0) // rose-500
+
+float src = input.source(hl2, title="Source")
+bool plotColorChange = input.bool(false, title="Plot color changes")
+
+var maGroup = "Moving Average"
+string maKind = input.string("SMA", title="Kind", options=["None", "SMA", "EMA", "RMA", "HMA", "WMA", "VWMA"], group=maGroup)
+int fastLength = input.int(5, title="Fast Length", minval=2, group=maGroup)
+int slowLength = input.int(34, title="Slow Length", minval=2, group=maGroup)
+
+
+// Calculate moving average by kind if not None
+maByKind(src, len, k) =>
+    switch k
+        "SMA"  => ta.sma(src, len)
+        "EMA"  => ta.ema(src, len)
+        "RMA"  => ta.rma(src, len)
+        "HMA"  => ta.hma(src, len)
+        "WMA"  => ta.wma(src, len)
+        "VWMA" => ta.vwma(src, len)
+        => src
+
+
+float fast = maByKind(src, fastLength, maKind)
+float slow = maByKind(src, slowLength, maKind)
+
+float ao = fast - slow
+float diff = ao - ao[1]
+
+bool changeToGreen = ta.crossover(diff, 0)
+bool changeToRed = ta.crossunder(diff, 0)
+
+plot(ao, color=diff > 0 ? BULLISH_COLOR : BEARISH_COLOR, style=plot.style_columns)
+
+plotshape(plotColorChange and changeToGreen ? low : na, title="Crossover", size=size.small, style=shape.triangleup, location=location.belowbar, color=BULLISH_COLOR, force_overlay=true)
+plotshape(plotColorChange and changeToRed ? high : na, title="Crossunder", size=size.small, style=shape.triangledown, location=location.abovebar, color=BEARISH_COLOR, force_overlay=true)
+
+alertcondition(changeToGreen, title= "Awesome oscillator crossover", message="Awesome oscillator's color has changed to green")
+alertcondition(changeToRed, title= "Awesome oscillator crossunder", message="Awesome oscillator's color has changed to red")
