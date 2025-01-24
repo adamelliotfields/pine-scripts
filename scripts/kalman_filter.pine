@@ -13,14 +13,6 @@ processNoise = input.float(
   step=0.01,
   tooltip="Controls how much the filter expects the underlying trend to change. Higher values adapt to trend changes faster, reducing smoothness (default: 0.1)")
 
-processNoiseCorrelation = input.float(
-  0.1,
-  title="Process Noise Correlation",
-  minval=0.0,
-  maxval=10.0,
-  step=0.1,
-  tooltip="Controls how much the noise in position and velocity are related to each other (default: 0.1)")
-
 observationNoise = input.float(
   10.0,
   title="Observation Noise",
@@ -61,8 +53,8 @@ var Q = matrix.new<float>(2, 2, 0.0)
 matrix.set(Q, 0, 0, processNoise)
 matrix.set(Q, 1, 1, processNoise)
 // cross terms
-matrix.set(Q, 0, 1, processNoise * processNoiseCorrelation)
-matrix.set(Q, 1, 0, processNoise * processNoiseCorrelation)
+matrix.set(Q, 0, 1, processNoise * processNoise)
+matrix.set(Q, 1, 0, processNoise * processNoise)
 
 // Observation noise covariance matrix (1x1)
 var R = matrix.new<float>(1, 1, observationNoise)
@@ -98,8 +90,8 @@ if barstate.isconfirmed
     K = P.mult(H.transpose().mult(S.inv()))
 
     // 4. Update state estimate based on observation
-    error = source - array.get(H.mult(X), 0)
-    correction = K.mult(error)
+    innovation = source - array.get(H.mult(X), 0)
+    correction = K.mult(innovation)
     X := array.from(
          array.get(X, 0) + matrix.get(correction, 0, 0),
          array.get(X, 1) + matrix.get(correction, 1, 0))
