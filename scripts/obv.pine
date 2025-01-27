@@ -1,0 +1,23 @@
+//@version=6
+indicator("On Balance Volume", shorttitle="OBV", precision=0)
+
+src = input.source(close, title="Source")
+
+var signalGroup = "Signal"
+signalType = input.string("SMA", title="Smoothing Type", options=["EMA", "SMA"], group=signalGroup)
+signalLength = input.int(20, title="Smoothing Length", group=signalGroup)
+showSignal = input.bool(true, title="Show line", group=signalGroup)
+fillArea = input.bool(false, title="Fill area", group=signalGroup)
+
+obv = ta.cum(math.sign(ta.change(src)) * volume)
+signal = signalType == "SMA" ? ta.sma(obv, signalLength) : ta.ema(obv, signalLength)
+
+trendColor = obv > signal ? color.green : color.red
+obvColor = fillArea ? color.new(trendColor, 0) : color.new(color.blue, 0)
+signalColor = fillArea ? color.new(trendColor, 0) : color.new(color.orange, 0)
+
+obvPlot = plot(obv, title="OBV", linewidth=2, color=obvColor)
+signalPlot = plot(showSignal ? signal : na, title="Signal", color=signalColor)
+
+fillColor = fillArea ? color.new(trendColor, 70) : na
+fill(obvPlot, signalPlot, color=fillColor)

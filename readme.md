@@ -100,6 +100,12 @@ Bandwidth determines how much weight is given to each data point. A larger bandw
 
 [Justin Dehorty](https://www.tradingview.com/u/jdehorty) popularized these techniques and posted a [video](https://www.youtube.com/watch?v=OfW0nwyaEd0) explaining kernel regression. For example, using an exponential kernel would generate a line that approximates an exponential moving average.
 
+### On-Balance Volume
+
+[`obv.pine`](./scripts/obv.pine)
+
+Fork of [Everget's](https://www.tradingview.com/script/Gb7B8oS6-On-Balance-Volume/), which adds a moving average line as a signal. When OBV crosses above, it is colored green, and red it crosses below. Traders typically look for divergences between price and OBV to predict reversals.
+
 ### Parabolic SAR
 
 [`parabolic_sar.pine`](./scripts/parabolic_sar.pine)
