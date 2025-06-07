@@ -1,0 +1,12 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal",
+  "waitFor": "postCreateCommand",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "EditorConfig.EditorConfig",
+        "frizLabz.pinescript-v5-vscode"
+      ]
+    }
+  }
+}
