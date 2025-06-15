@@ -1,22 +1,24 @@
 //@version=6
-
-// https://www.tradingview.com/script/ZMdZlGaJ-Volume-Speed-By-MUQWISHI © MUQWISHI (MPL 2.0)
 indicator("Volume Meter", overlay=true)
 
 const int TABLE_WIDTH = 50
 const int NUM_SECONDS = 62 // 2 second buffer to avoid out-of-bounds error
 const int SPACE = 1 // set to 0 to remove space between cells
 
+timeframe = input.timeframe("1", title="Timeframe")
+
 tablePosition = input.string(
   "bottom_center",
   title="Location | Size",
   inline="inline1",
+  display=display.none,
   options=["top_right", "middle_right", "bottom_right", "top_center", "middle_center", "bottom_center", "top_left", "middle_left", "bottom_left"])
 
 textSize = input.string(
   "tiny",
   title="",
   inline="inline1",
+  display=display.none,
   options=["auto", "huge", "large", "normal", "small", "tiny"])
 
 // Table colors
@@ -89,7 +91,7 @@ var lowerTimeframe = matrix.new<float>(0, 5, na)
 // Fetch lower timeframe data
 [lowerClose, lowerTime, lowerVolume, lowerStart] = request.security_lower_tf(
   syminfo.tickerid,
-  "1S",
+  timeframe,
   [close, time, volume, session.isfirstbar ? 1 : 0],
   true)
 
