@@ -1,0 +1,139 @@
+//@version=6
+indicator("Automatic Support Resistance", "AutoSR", overlay=true, max_bars_back=501) // ensure greater than max lookback
+
+const color ROSE_500 = color.new(#f43f5e, 75)
+const color TEAL_500 = color.new(#14b8a6, 75)
+
+pivotBars = input.int(20, title="Pivot Bars", minval=10, maxval=30, tooltip="Number of left and right bars to consider for pivots")
+numZones = input.int(6, title="Number of Zones", minval=1, maxval=10, tooltip="Maximum number of zones to show")
+zoneTolerance = input.float(3, title="Zone Tolerance (%)", minval=1, maxval=10, tooltip="Percentage tolerance for zone confluence")
+lookbackPeriod = input.int(200, title="Lookback Period", minval=100, maxval=500, tooltip="Total number of bars to use in pivot calculations")
+
+var g1 = "Colors"
+resistanceColor = input.color(ROSE_500, title="Resistance Color", group=g1)
+supportColor = input.color(TEAL_500, title="Support Color", group=g1)
+
+type Zone
+    float high
+    float low
+    int   pivots
+
+float pivotHigh = ta.pivothigh(high, pivotBars, pivotBars)
+float pivotLow = ta.pivotlow(low, pivotBars, pivotBars)
+
+float barHigh = ta.highest(high, lookbackPeriod)
+float barLow = ta.lowest(low, lookbackPeriod)
+
+float zoneThreshold = (barHigh - barLow) * zoneTolerance / 100
+
+// State
+var pivotValues = array.new_float()
+var pivotLocations = array.new_int()
+var zoneBounds = array.new_float(numZones * 2, 0)
+var zonePivots = array.new_float(numZones, 0)
+var zones = array.new_box(numZones)
+
+// Find a zone of confluence around a given pivot by grouping all nearby pivots within the `zoneThreshold`
+getZone(pivotId) =>
+    float value = pivotValues.get(pivotId)
+    float h = value
+    float l = value
+    int p = 0
+    for i = 0 to pivotValues.size() - 1
+        float current = pivotValues.get(i)
+        if math.abs(current - value) <= zoneThreshold
+            l := math.min(l, current)
+            h := math.max(h, current)
+            p += 1
+    Zone.new(h, l, p)
+
+getBoundary(zoneId) =>
+    float result = na
+    if zoneId < zoneBounds.size() and zoneBounds.get(zoneId) != 0
+        result := zoneBounds.get(zoneId)
+    result
+
+getColor(zoneId) =>
+    color result = na
+    if zoneId < zoneBounds.size() and zoneBounds.get(zoneId) != 0
+        float highPoint = zoneBounds.get(zoneId)
+        float lowPoint = zoneBounds.get(zoneId + 1)
+        float midPoint = (highPoint + lowPoint) / 2
+        result := close > midPoint ? supportColor : resistanceColor
+    result
+
+// Only execute on bars where a new pivot is confirmed
+if not na(pivotHigh) or not na(pivotLow)
+    pivotValues.unshift(not na(pivotHigh) ? pivotHigh : pivotLow)
+    pivotLocations.unshift(bar_index)
+
+    // Prune old pivots outside the lookback
+    for i = pivotValues.size() - 1 to 0
+        if bar_index - pivotLocations.get(i) > lookbackPeriod
+            pivotValues.pop()
+            pivotLocations.pop()
+            continue
+        break
+
+    // Keep old zones and calculate new zones if we found a pivot
+    var tempZones = array.new<Zone>()
+    for i = 0 to pivotValues.size() - 1
+        zone = getZone(i)
+        tempZones.push(zone)
+
+    // Reset S/R levels
+    zoneBounds.fill(0)
+    zonePivots.fill(0)
+
+    // Select the top zones
+    int foundZones = 0
+    if tempZones.size() > 0
+        for _ = 0 to numZones - 1
+            int maxPivots = -1
+            int topZoneId = -1
+            for i = 0 to tempZones.size() - 1
+                Zone currentZone = tempZones.get(i)
+                if currentZone.pivots > maxPivots
+                    maxPivots := currentZone.pivots
+                    topZoneId := i
+
+            // If we found a zone with pivots
+            if topZoneId != -1
+                Zone selectedZone = tempZones.get(topZoneId)
+                float h = selectedZone.high
+                float l = selectedZone.low
+                int p = selectedZone.pivots
+
+                // Add it to our lists
+                zoneBounds.set(foundZones * 2, h)
+                zoneBounds.set(foundZones * 2 + 1, l)
+                zonePivots.set(foundZones, p)
+
+                // Increment zone counter
+                foundZones += 1
+
+                // Invalidate zones that overlap with the current one
+                for i = tempZones.size() - 1 to 0
+                    Zone zoneToInvalidate = tempZones.get(i)
+                    float zoneHigh = zoneToInvalidate.high
+                    if zoneHigh <= h and zoneHigh >= l
+                        zoneToInvalidate.pivots := -1
+            else
+                break
+
+// Draw zones
+for i = 0 to numZones - 1
+    // Delete and redraw instead of updating for simplicity
+    box.delete(zones.get(i))
+    color srColor = getColor(i * 2)
+    if not na(srColor)
+        zones.set(
+          i,
+          box.new(
+          left=bar_index[1],
+          top=getBoundary(i * 2),
+          right=bar_index + 1,
+          bottom=getBoundary(i * 2 + 1),
+          extend=extend.both,
+          border_color=srColor,
+          bgcolor=srColor))
