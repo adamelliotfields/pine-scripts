@@ -4,45 +4,55 @@
 
 ## Scripts
 
-### Anchored Fibonacci
-
-[`anchored_fibonacci.pine`](./scripts/anchored_fibonacci.pine)
-
-Fork of [LuxAlgo's](https://www.tradingview.com/script/2HmHKuo1-Fibonacci-Toolkit-LuxAlgo).
-
-Fibonacci retracement levels are horizontal lines that indicate where support and resistance are likely to occur. They appear _sometimes_ in nature - like sunflower seed spirals - but it appears to be more of a coincidence than a law of the universe. In financial markets they have become somewhat of a self-fulfilling prophecy, since many traders and algorithms look for them.
-
-The levels are derived from the Golden Ratio, $\phi \approx 1.618$, and its reciprocal, $\frac{1}{\phi} \approx 0.618$:
-* `0.618`: The most important level, directly derived from the Golden Ratio. As the sequence grows, dividing any number by the next number approaches `0.618`.
-* `0.382`: $1 - \frac{1}{\phi} \approx 0.382$. The compliment of the reciprocal of the Golden Ratio. As the sequence grows, dividing any number by the number two positions higher approaches `0.382`.
-* `0.236`: $\frac{2}{\phi} - 1 \approx 0.236$. As the sequence grows, dividing any number by the number three positions higher approaches `0.236`. Considered shallow retracement.
-* `0.786`: $\sqrt{\frac{1}{\phi}} \approx 0.786$. The square root of the reciprocal of the Golden Ratio. Considered deep retracement.
-
-The 50% level is not a Fibonacci ratio, but it is a significant psychological level for traders. Also, the 100% level represents a complete retracement to the start of the move, indicating a potential trend reversal.
-
-Fibonacci numbers are also used in [Elliott wave theory](https://en.wikipedia.org/wiki/Elliott_wave_principle). The default Awesome Oscillator parameters are 5 and 34, which are Fibonacci numbers.
-
-### Anchored Linear Regression
-
-[`anchored_linear_regression.pine`](./scripts/anchored_linear_regression.pine)
-
-Ordinary least squares regression based on the built-in implementation. Use for automatic trendlines. Anchored to a start date on the chart.
-
 ### Anchored VWAP
 
 [`anchored_vwap.pine`](./scripts/anchored_vwap.pine)
 
 Implementation of [Brian Shannon](https://www.youtube.com/@alphatrends)'s [Anchored VWAP](https://alphatrends.net/anchored-vwap/) indicator. Normally VWAP (volume-weighted average price) is calculated from the start of the bar (i.e., price resets daily). Anchored VWAP allows you to choose the start point, such as the beginning of a trend or a significant event. It results in a line that is more relevant to the current price action.
 
-Most anchored VWAPs on TradingView use a datepicker; I use `time(confirm=true)` so you only need to click on the chart. You can drag the starting point to a new position to recalculate.
+I use `time(confirm=true)` so you only need to click on the chart. You can drag the starting point to a new position to recalculate.
 
-### Average Directional Index
+### Automatic Fibonacci
 
-[`adx.pine`](./scripts/adx.pine)
+[`automatic_fibonacci.pine`](./scripts/automatic_fibonacci.pine)
+
+Started as a fork of [LuxAlgo's](https://www.tradingview.com/script/2HmHKuo1-Fibonacci-Toolkit-LuxAlgo). I added the automatic swing high/low detection.
+
+Fibonacci retracement levels are horizontal lines that indicate where support and resistance are likely to occur. In financial markets they have become somewhat of a self-fulfilling prophecy, since many traders and algorithms look for them.
+
+The levels are derived from the Golden Ratio, $\phi \approx 1.618$, and its reciprocal, $\frac{1}{\phi} \approx 0.618$:
+* `0.618`: The most important level, directly derived from the Golden Ratio. As the sequence grows, dividing any number by the next number approaches `0.618`.
+* `0.382`: $1 - \frac{1}{\phi} \approx 0.382$. The complement of the reciprocal of the Golden Ratio. As the sequence grows, dividing any number by the number two positions higher approaches `0.382`.
+* `0.236`: $\frac{2}{\phi} - 1 \approx 0.236$. As the sequence grows, dividing any number by the number three positions higher approaches `0.236`. Considered shallow retracement.
+* `0.786`: $\sqrt{\frac{1}{\phi}} \approx 0.786$. The square root of the reciprocal of the Golden Ratio. Considered deep retracement.
+
+The 50% level is not a Fibonacci ratio, but it is a significant psychological level for traders.
+
+Fibonacci numbers are also used in [Elliott wave theory](https://en.wikipedia.org/wiki/Elliott_wave_principle). The default Awesome Oscillator parameters are 5 and 34, which are Fibonacci numbers.
+
+### Automatic Linear Regression
+
+[`automatic_linear_regression.pine`](./scripts/automatic_linear_regression.pine)
+
+Ordinary least squares regression based on the built-in implementation. Use for automatic trendlines and standard deviation bands. The anchor point is determined by the nearest pivot high or low.
+
+### Automatic Support/Resistance
+
+[`automatic_support_resistance.pine`](./scripts/automatic_support_resistance.pine)
+
+Inspired by [LonesomeTheBlue's](https://www.tradingview.com/script/Ej53t8Wv-Support-Resistance-Channels/).
+
+Identifies key support and resistance zones by analyzing clusters of pivot points. Zones with more pivots within a percentage tolerance are ranked higher. Once the maximum number of zones is reached, the script stops looking. This ensures that only the most recent and significant zones are displayed.
+
+Zones are colored green when the price is above the zone's midpoint (support) and red when below (resistance). The width is determined by the distance between the highest and lowest pivots in the zone.
+
+### Average Directional Index Histogram
+
+[`adx_histogram.pine`](./scripts/adx_histogram.pine)
 
 The [Average Directional Index](https://en.wikipedia.org/wiki/Average_directional_movement_index) (ADX) was created by [J. Welles Wilder](https://en.wikipedia.org/wiki/J._Welles_Wilder_Jr.).
 
-My implementation uses a histogram instead of plotting separate DI lines.
+My implementation uses a histogram instead of plotting separate lines. There are alerts for the ADX changing between rising and falling.
 
 ### Awesome Oscillator
 
@@ -90,27 +100,23 @@ Plot two moving averages with crossover/crossunder symbols and alerts.
 
 [`nw_line.pine`](./scripts/nw_line.pine)
 
-Based on [LuxAlgo's](https://www.tradingview.com/pine/?id=PUB%3B7e0627ee892c4d1ea304928bb62f4c62)'s in non-repainting mode. They use a fixed 500-bar lookback and calculate all the weights on first bar (ahead-of-time). I calculate the weight for each bar (just-in-time), allowing for a variable lookback.
+Based on [LuxAlgo's](https://www.tradingview.com/pine/?id=PUB%3B7e0627ee892c4d1ea304928bb62f4c62)'s in non-repainting mode. They use a fixed 500-bar lookback, whereas I use a variable lookback.
 
-This indicator creates an adaptive price line using the Nadaraya-Watson kernel regression technique.
+This indicator creates an adaptive price line using the Nadaraya-Watson kernel regression technique. It is different from a moving average because it is non-linear and adapts to the data. It is different from a Kalman filter because it is non-parametric; it doesn't try to estimate the state of the system and makes no assumptions about the underlying process (price dynamics).
 
-It is different from a moving average because it is non-linear and adapts to the data. It is different from a Kalman filter because it is non-parametric. It doesn't try to estimate the state of the system and makes no assumptions about the underlying process (price dynamics).
-
-Bandwidth determines how much weight is given to each data point. A larger bandwidth creates a wider curve, giving more weight to distant points. Pick a lookback based on trading timeframe and tune bandwidth based on your data.
-
-[Justin Dehorty](https://www.tradingview.com/u/jdehorty) popularized these techniques and posted a [video](https://www.youtube.com/watch?v=OfW0nwyaEd0) explaining kernel regression. For example, using an exponential kernel would generate a line that approximates an exponential moving average.
+[Justin Dehorty](https://www.tradingview.com/u/jdehorty) popularized these techniques and posted a [video](https://www.youtube.com/watch?v=OfW0nwyaEd0) explaining kernel regression.
 
 ### On-Balance Volume
 
 [`obv.pine`](./scripts/obv.pine)
 
-Fork of [Everget's](https://www.tradingview.com/script/Gb7B8oS6-On-Balance-Volume/), which adds a moving average line as a signal. When OBV crosses above, it is colored green, and red it crosses below. Traders typically look for divergences between price and OBV to predict reversals.
+Fork of [Everget's](https://www.tradingview.com/script/Gb7B8oS6-On-Balance-Volume/) with a moving average line as a signal. When OBV crosses above, it is colored green, and red when it crosses below.
 
 ### Parabolic SAR
 
 [`parabolic_sar.pine`](./scripts/parabolic_sar.pine)
 
-The Parabolic SAR (Stop and Reverse) indicator is a trend-following indicator that provides entry and exit points. It was developed by J. Welles Wilder. The further the SAR value is from the price, the stronger the trend. The dots appear below the price during uptrends, and above the price during downtrends. As the trend weakens, the dots get closer to the price, eventually crossing it and signaling a potential reversal. This differs from the built-in indicator by using gradient coloring based on distance from price.
+The Parabolic SAR (Stop and Reverse) indicator is a trend-following indicator that provides entry and exit points. It was developed by J. Welles Wilder. The further the SAR value is from the price, the stronger the trend. The dots appear below the price during uptrends, and above the price during downtrends. As the trend weakens, the dots get closer to the price, eventually crossing it and signaling a potential reversal. Based on the built-in indicator with gradient coloring by distance from price.
 
 ### Supertrend
 
@@ -118,27 +124,25 @@ The Parabolic SAR (Stop and Reverse) indicator is a trend-following indicator th
 
 The Supertrend indicator was developed by Olivier Seban in 2009. It is an ATR-based trend-following indicator.
 
-My implementation uses the built-in with some personal visual improvements.
-
 ### Symbol
 
 [`symbol.pine`](./scripts/symbol.pine)
 
-Displays a candlestick chart with optional moving average for the given symbol in the oscillators pane.
+Renders a candlestick chart and a moving average line for a given symbol in the oscillators pane. Useful for comparing multiple symbols without cluttering the main chart area. Can't display volume easily because of scaling.
 
 ### Volume Meter
 
 [`volume_meter.pine`](./scripts/volume_meter.pine)
 
-Fork of [Muqwishi's](https://www.tradingview.com/script/ZMdZlGaJ-Volume-Speed-By-MUQWISHI/). Visualizes the "realtime" buying or selling pressure of a stock or coin by using `request.security_lower_tf()` to fetch the volume from the 1-second chart. Uses `U+2009` (thin space) unicode character for alignment in the settings menu. Also check out their [Tape](https://www.tradingview.com/script/IZnarK90-Time-Sales-Tape-By-MUQWISHI/) script for synthesized time and sales.
+Fork of [Muqwishi's](https://www.tradingview.com/script/ZMdZlGaJ-Volume-Speed-By-MUQWISHI/). Visualizes the "realtime" buying or selling pressure of a stock or coin by using `request.security_lower_tf()`. You need the Premium plan to request timeframes under a minute.
 
 ### Zig Zag
 
 [`zig_zag.pine`](./scripts/zig_zag.pine)
 
-The Zig Zag indicator finds pivot points, which are local highs and lows that exceed a minimum deviation threshold. The difference between each pivot can be displayed on the chart as a percentage or absolute value. The depth parameter determines how big the sliding window is for finding pivots. For example, the default of `20` means 10 bars before and 10 bars after the current bar. It's more of a visual indicator than a trading signal, although the pivot points can be also be used as start points for the anchored indicators.
+The Zig Zag indicator finds pivot points, which are local highs and lows that exceed a minimum deviation threshold. The difference between each pivot can be displayed on the chart as a percentage or absolute value. The depth parameter determines how big the sliding window is for finding pivots. For example, the default of `20` means 10 bars before and 10 bars after the current bar. It's more of a visual indicator than a trading signal.
 
-My implementation uses TradingView's [Zig Zag](https://www.tradingview.com/script/bzIRuGXC-ZigZag/) library with both percent and ATR-based deviation.
+My implementation uses TradingView's [Zig Zag](https://www.tradingview.com/script/bzIRuGXC-ZigZag/) library with ATR-based deviation.
 
 ## Notes
 
