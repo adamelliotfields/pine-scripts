@@ -1,0 +1,50 @@
+//@version=6
+indicator("ADX Histogram", shorttitle="ADX", format=format.price, precision=2)
+
+const color TEAL_500 = color.new(#14b8a6, 0)
+const color TEAL_300 = color.new(#5eead4, 0)
+
+const color ROSE_300 = color.new(#fda4af, 0)
+const color ROSE_500 = color.new(#f43f5e, 0)
+
+// Settings
+diLength = input.int(14, title="DI Length", minval=2)
+adxSmoothing = input.int(14, title="ADX Smoothing", minval=2)
+maKind = input.string("RMA", title="Moving Average Kind", options=["None", "SMA", "EMA", "RMA", "HMA", "WMA", "VWMA"])
+maLength = input.int(3, title="Moving Average Length", minval=2)
+
+// Calculate moving average by kind if not None
+maByKind(src, len, k) =>
+    switch k
+        "SMA"  => ta.sma(src, len)
+        "EMA"  => ta.ema(src, len)
+        "RMA"  => ta.rma(src, len)
+        "HMA"  => ta.hma(src, len)
+        "WMA"  => ta.wma(src, len)
+        "VWMA" => ta.vwma(src, len)
+        => src
+
+[plus, minus, _] = ta.dmi(diLength, adxSmoothing) // ignore the ADX line
+
+// Apply moving average to the DI difference for histogram
+histogram = maByKind(plus - minus, maLength, maKind)
+
+// Plot ADX histogram
+plot(
+  histogram,
+  title="Histogram",
+  style=plot.style_columns,
+  color=histogram >= 0 ?
+      (histogram[1] < histogram ? TEAL_500 : TEAL_300) :
+      (histogram[1] < histogram ? ROSE_300 : ROSE_500))
+
+// Alerts
+alertcondition(
+  histogram[1] >= 0 and histogram < 0,
+  title="Rising to falling",
+  message="The ADX switched from a rising to falling state")
+
+alertcondition(
+  histogram[1] <= 0 and histogram > 0,
+  title="Falling to rising",
+  message="The ADX switched from a falling to rising state")
