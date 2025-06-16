@@ -1,0 +1,144 @@
+//@version=6
+indicator("Automatic Fibonacci", shorttitle="AutoFib", overlay=true)
+
+const color GREEN_500 = color.new(#22c55e, 0)
+const color TEAL_500 = color.new(#14b8a6, 0)
+const color SKY_500 = color.new(#0ea5e9, 0)
+const color INDIGO_500 = color.new(#6366f1, 0)
+const color PURPLE_500 = color.new(#a855f7, 0)
+const color RED_500 = color.new(#ef4444, 0)
+const color GRAY_500 = color.new(#6b7280, 50)
+
+pivotBars = input.int(20, title="Pivot Bars", minval=10, maxval=50, tooltip="Number of left and right bars to consider for pivots")
+
+fibA = input.bool(true, "Fib A", inline="inline1")
+fibALevel = input.float(0.236, "", inline="inline1")
+fibAColor = input.color(GREEN_500, "", inline="inline1")
+
+fibB = input(true, "Fib B", inline="inline2")
+fibBLevel = input(0.382, "", inline="inline2")
+fibBColor = input(TEAL_500, "", inline="inline2")
+
+fibC = input(true, "Fib C", inline="inline3")
+fibCLevel = input(0.5, "", inline="inline3")
+fibCColor = input(SKY_500, "", inline="inline3")
+
+fibD = input(true, "Fib D", inline="inline4")
+fibDLevel = input(0.618, "", inline="inline4")
+fibDColor = input(INDIGO_500, "", inline="inline4")
+
+fibE = input(true, "Fib E", inline="inline5")
+fibELevel = input(0.786, "", inline="inline5")
+fibEColor = input(PURPLE_500, "", inline="inline5")
+
+fibF = input(true, "Fib F", inline="inline6")
+fibFLevel = input(1.0, "", inline="inline6")
+fibFColor = input(RED_500, "", inline="inline6")
+
+connectingLine = input(true, "Line", inline="inline7")
+connectingLineColor = input(GRAY_500, "", inline="inline7")
+
+extendRetracements = input.bool(true, "Extend retracements")
+
+var fib = array.new_float(0)
+var fibColor = array.new_color(0)
+
+if barstate.isfirst
+    if fibA
+        array.push(fib, fibALevel)
+        array.push(fibColor, fibAColor)
+    if fibB
+        array.push(fib, fibBLevel)
+        array.push(fibColor, fibBColor)
+    if fibC
+        array.push(fib, fibCLevel)
+        array.push(fibColor, fibCColor)
+    if fibD
+        array.push(fib, fibDLevel)
+        array.push(fibColor, fibDColor)
+    if fibE
+        array.push(fib, fibELevel)
+        array.push(fibColor, fibEColor)
+    if fibF
+        array.push(fib, fibFLevel)
+        array.push(fibColor, fibFColor)
+
+var float lastPivotHighPrice = na
+var int lastPivotHighBar = na
+var float lastPivotLowPrice = na
+var int lastPivotLowBar = na
+
+// Detect pivots
+float pivotHigh = ta.pivothigh(high, pivotBars, pivotBars)
+float pivotLow = ta.pivotlow(low, pivotBars, pivotBars)
+
+if not na(pivotHigh)
+    lastPivotHighBar := bar_index - pivotBars
+    lastPivotHighPrice := pivotHigh
+
+if not na(pivotLow)
+    lastPivotLowBar := bar_index - pivotBars
+    lastPivotLowPrice := pivotLow
+
+var int anchorStartBar = na
+var float anchorStartPrice = na
+var int anchorEndBar = na
+var float anchorEndPrice = na
+
+// Use both pivots to determine the trend direction
+if not na(lastPivotHighPrice) and not na(lastPivotLowPrice)
+    if lastPivotHighBar > lastPivotLowBar
+        // Downtrend: high to low
+        anchorStartBar := lastPivotHighBar
+        anchorStartPrice := lastPivotHighPrice
+        anchorEndBar := lastPivotLowBar
+        anchorEndPrice := lastPivotLowPrice
+    else
+        // Uptrend: low to high
+        anchorStartBar := lastPivotLowBar
+        anchorStartPrice := lastPivotLowPrice
+        anchorEndBar := lastPivotHighBar
+        anchorEndPrice := lastPivotHighPrice
+
+// Draw Fibonacci levels
+if not na(anchorStartBar) and not na(anchorEndBar)
+    if connectingLine
+        line.new(
+          x1=anchorStartBar,
+          y1=anchorStartPrice,
+          x2=anchorEndBar,
+          y2=anchorEndPrice,
+          color=connectingLineColor)
+
+    diffPrice = anchorEndPrice - anchorStartPrice
+    for i = 0 to array.size(fib) - 1
+        y = anchorStartPrice + array.get(fib, i) * diffPrice
+        line.new(
+          x1=anchorStartBar,
+          y1=y,
+          x2=anchorEndBar,
+          y2=y,
+          color=array.get(fibColor, i))
+
+        if extendRetracements
+            x1 = math.max(anchorStartBar, anchorEndBar)
+            x2 = x1 + 1
+            line.new(
+              x1,
+              y,
+              x2,
+              y,
+              extend=extend.right,
+              style=line.style_dashed,
+              color=array.get(fibColor, i))
+
+        x = math.min(anchorStartBar, anchorEndBar)
+        label.new(
+          x,
+          y,
+          text=str.tostring(array.get(fib, i)),
+          color=color(na), // transparent
+          style=label.style_label_right,
+          size=size.small,
+          textcolor=array.get(fibColor, i),
+          textalign=text.align_center)
